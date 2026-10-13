@@ -4,7 +4,7 @@
 
 Choose a small issue with an owner and observable completion criteria. If another part consumes your data, agree on its contract first. Use fictional examples while the other implementation is pending.
 
-A primarily reviews voice changes, B brain/schema changes, and C app changes. Ownership means review responsibility, not a prohibition on helping. Contract changes need review by both producer and consumer. B reviews schema changes and coordinates migrations.
+A primarily reviews database, call-handling, delivery and push changes (`supabase/`); B reviews voice agent, AI instruction, detection, summary and test changes (`voice/`, `supabase/functions/brain/`, `tests/`); C reviews app changes (`app/`). Ownership means review responsibility, not a prohibition on helping. Contract changes need review by both producer and consumer. A reviews schema changes and coordinates migrations.
 
 ## Branch and PR workflow
 

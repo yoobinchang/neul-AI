@@ -1,22 +1,35 @@
 # Interface contracts
 
-**Status: draft examples for review, not implemented endpoints.** B maintains this document; A and C review the parts they consume. Start with C01-C03. Keep other operations in the backlog until needed.
+**Status: draft examples for review, not implemented.** A maintains this document; B and C review the parts they produce or consume. Agree C01–C03 first (Week 1), then the rest as features need them.
 
 ## Common conventions
 
-- JSON fields use snake_case; internal variable names can differ.
+- JSON fields and database columns use snake_case; internal variable names can differ.
 - IDs are opaque strings. Examples are fictional, not real provider identifiers.
 - Timestamps use ISO 8601 UTC strings; durations use integer seconds.
-- Caregiver HTTP operations require a valid bearer token and server-side family membership checks. Internal operations require trusted service authentication or an equivalent in-process boundary; caregiver tokens do not grant internal write access.
+- Caregiver reads/writes go directly to Supabase tables/views under row-level security (D07). Server functions (call handling, summaries, delivery) use service credentials that never reach the app.
 - Every listed field is required unless explicitly optional. Null is a value, not an omitted field.
-- Common HTTP errors: 400 invalid input; 401 missing/invalid authentication; 403 wrong role for an operation; 404 resource absent or inaccessible in the caller's family; 409 duplicate key with conflicting content; 500 unexpected internal failure; 503 temporary dependency failure.
+- Server-function HTTP errors: 400 invalid input; 401 missing/invalid authentication; 403 wrong role; 404 resource absent or inaccessible; 409 duplicate key with conflicting content; 500 unexpected failure; 503 temporary dependency failure.
 - Error envelope: `{"error":{"code":"CALL_NOT_FOUND","message":"Call not found."}}`. Consumers branch on code, not message text.
 
-Internal names below are logical operations. If HTTP is chosen, implement an authenticated internal route; do not expose them as public client operations.
+## Overview
 
-## C01: Resolve call context (A -> B)
+| ID | Contract | Producer → consumer |
+| --- | --- | --- |
+| C01 | Call context | A (lookup) → B (instructions) |
+| C02 | Completed call | A (stores) → B (summary trigger) |
+| C03 | Call detail | Database → C |
+| C04 | Call list + live updates | Database → C |
+| C05 | Parent profile edit | C → database |
+| C06 | Alert record + delivery attempts | B (creates) → A (delivers) → C (displays) |
+| C07 | Lost Mode location | C (Parent Mode) → database → C (map) |
+| C08 | Pairing and push subscription | C ↔ A |
 
-Input:
+## C01: Call context (A → B)
+
+When a forwarded call starts, A's call handler resolves the family and passes context to B's instruction builder.
+
+Lookup input:
 
 ```json
 {
@@ -26,12 +39,13 @@ Input:
 }
 ```
 
-Numbers are normalized strings; caller_number may be null. Family resolution uses trusted destination/routing information. Verify source-provider events before accepting them.
+Numbers are normalized strings; caller_number may be null. Family resolution uses trusted destination/routing information.
 
-Resolved example:
+Context passed to B:
 
 ```json
 {
+  "call_id": "call_demo_001",
   "family_id": "family_demo_001",
   "context_status": "resolved",
   "parent": {
@@ -44,20 +58,22 @@ Resolved example:
   },
   "primary_contact": {
     "contact_id": "contact_demo_001",
+    "display_name": "Sam",
     "phone_number": "+12025550102"
   }
 }
 ```
 
-context_status is resolved or unknown_caller. The caller-policy decision must define when resolved is permitted; a matching number is not strong identity proof. For unknown_caller, return parent=null; expose primary_contact only internally for the permitted alert path. Unknown destination returns FAMILY_NOT_FOUND and no family context. Missing primary contact is null and must not silently count as a valid escalation setup. Recent summaries are excluded until D10 is decided.
+context_status is resolved or unknown_caller. For unknown_caller, parent is null and B uses generic instructions; primary_contact is used only for the alert path. Unknown destination returns FAMILY_NOT_FOUND and no family context. Missing primary contact is null and must not silently count as a valid escalation setup. A creates the call row at call start (status in_progress) so alerts can reference call_id. Whether recent summaries are included is open (D10).
 
-## C02: Store completed call (A -> B)
+## C02: Completed call (A → B)
 
-Input:
+A finalizes the call row when the provider reports the call ended:
 
 ```json
 {
   "event_id": "event_demo_001",
+  "call_id": "call_demo_001",
   "provider_call_id": "provider_demo_001",
   "family_id": "family_demo_001",
   "parent_id": "parent_demo_001",
@@ -65,31 +81,30 @@ Input:
   "ended_at": "2026-10-12T04:02:00Z",
   "duration_seconds": 120,
   "transcript": "Parent: When will Sam visit?\nNeul: I do not have a confirmed visit time. I can let Sam know you asked.",
-  "urgency": "routine"
+  "urgency": "routine",
+  "cost_cents": 14
 }
 ```
 
-parent_id may be null for an unresolved caller. Both timestamps are required, ended_at must not precede started_at, and duration_seconds is a nonnegative integer reported by the provider adapter; small timing discrepancies may exist. transcript is a nonempty string for this first contract. Missing-transcript/provider-failure events need a separate agreed ingestion path and must not produce invented summaries. urgency is routine, urgent, or lost.
+parent_id may be null. ended_at must not precede started_at. transcript is nonempty; missing-transcript/provider-failure events need a separate path and must not produce invented summaries. urgency is routine, urgent, or lost. cost_cents is the provider-reported phone + AI cost, or null if unavailable.
 
-B verifies family/parent relationships against trusted routing. A service caller cannot attach arbitrary profiles to a family. Successful storage durably registers summary work.
-
-Response:
+Finalizing sets summary_status to processing and fires the trigger that calls B's summary function. B writes back:
 
 ```json
 {
   "call_id": "call_demo_001",
-  "summary_status": "processing",
-  "duplicate": false
+  "summary_status": "completed",
+  "summary": "Asked when Sam would visit. No confirmed time was provided.",
+  "topic": "Visit timing",
+  "mood": "calm"
 }
 ```
 
-If transported over HTTP, use 201 for a new record and 200 for an identical replay. An exact replay of event_id returns the existing call and current summary_status with duplicate=true; it does not create another job. Reusing event_id with different content returns 409 EVENT_CONFLICT. Deduplicate a completed call by provider namespace plus provider_call_id as well. A provider adapter supplies/normalizes event IDs; not every provider has identical event semantics.
+On failure, summary_status is failed and summary is null; retries are bounded. An exact replay of event_id changes nothing; reusing event_id with different content is rejected (EVENT_CONFLICT). mood is a tentative description, not a diagnosis.
 
-## C03: Get call detail (C -> B)
+## C03: Call detail (database → C)
 
-`GET /api/calls/{call_id}` with `Authorization: Bearer <token>`.
-
-Success: 200.
+C reads one row from the `call_details` view (row-level security restricts it to the caregiver's family):
 
 ```json
 {
@@ -99,23 +114,21 @@ Success: 200.
   "duration_seconds": 120,
   "urgency": "routine",
   "summary_status": "completed",
-  "summary": "Asked when Sam would visit. No confirmed time was provided."
+  "summary": "Asked when Sam would visit. No confirmed time was provided.",
+  "topic": "Visit timing",
+  "mood": "calm"
 }
 ```
 
-This endpoint initially serves ended calls. parent_id may be null. summary_status is processing, completed, or failed. summary is a nonempty string only when completed; otherwise null. The UI displays a distinct processing/failed state. Transcript is not included in this first response. Cross-family or nonexistent IDs return 404 CALL_NOT_FOUND.
+summary_status is processing, completed, or failed; summary, topic and mood are null unless completed. The transcript is not included. A row from another family is simply not returned; the app shows "Call not found."
 
-## C04: List calls (C -> B)
+## C04: Call list and live updates (database → C)
 
-`GET /api/calls?limit=20&cursor=<opaque_cursor>`.
+C queries `call_details` ordered by started_at descending (call_id as tie-breaker), 20 rows per page, and subscribes to live inserts/updates for its family's calls and alerts. Empty list is valid. The app shows distinct processing, completed, failed and empty states.
 
-limit is optional, default 20, integer range 1-100. cursor is optional on the first request. Return 200 with `{"items": [], "next_cursor": null}` when there are no calls. Each item has the C03 fields. Sort newest first by started_at, with call_id as a deterministic tie-breaker. next_cursor is string or null. Restrict results to the authorized active family; decide multi-family selection before extending the demo.
+## C05: Parent profile edit (C → database)
 
-## C05: Update parent profile (C -> B)
-
-`PATCH /api/parents/{parent_id}`. Bearer token and authorized caregiver edit role required.
-
-Example body:
+C updates the `parents` row directly. Editable fields:
 
 ```json
 {
@@ -127,22 +140,72 @@ Example body:
 }
 ```
 
-At least one field is required; omitted fields remain unchanged. Null is rejected. preferred_name is a nonempty string; routine may be an empty string to clear it. Arrays contain strings and [] clears a list. Reject unknown fields. Provisional limits: preferred_name 100 characters, routine 2000, arrays at most 20 items and 300 characters per item. IDs/family ownership are not editable here.
+Row-level security allows edits only by caregivers of that family. Database constraints enforce: preferred_name nonempty, max 100 characters; routine max 2000; arrays max 20 items, 300 characters each. IDs and family ownership are not editable. Changes apply to the next C01 lookup. Initial profile creation is part of onboarding and needs its own contract.
 
-Return 200 with parent_id and all five editable fields. Validate server-side. Initial profile creation belongs to onboarding and needs a separate contract; this PATCH does not create accounts/profiles.
+## C06: Alert record and delivery attempts (B → A → C)
 
-## C06: Record an alert (A -> B)
+B's detection creates an alert record mid-call:
 
-Logical operation record_alert takes event_id, call_id, type (urgent or lost), reason (string), and created_at (UTC). Return alert_id and duplicate flag. Apply identical-replay/conflicting-replay rules from C02. This operation records intent; it does not mean a message was delivered.
+```json
+{
+  "event_id": "alert_event_demo_001",
+  "call_id": "call_demo_001",
+  "type": "lost",
+  "reason": "Caller said she does not know where she is.",
+  "landmarks": ["gas station", "red awning"],
+  "created_at": "2026-10-12T04:01:10Z"
+}
+```
 
-A live call must already have a call_id. Before urgent-alert implementation, add an idempotent start_call operation returning that ID and extend C02 to finalize the existing call instead of creating another one. Do not link alerts to an unrelated or not-yet-existent completed-call record.
+type is urgent or lost. landmarks is an array (may be empty) of volunteered clues. Identical replay of event_id creates nothing new. Recording an alert means intent, not delivery.
 
-A separately records each SMS/call attempt with attempt_id, alert_id, contact_id, channel, attempted_at, and status. Proposed statuses: queued, sent, delivered, failed. Define provider-specific mappings before implementation. Acknowledgment is a separate authenticated caregiver action, not a delivery status.
+A's delivery code reacts to each new alert and records every attempt:
 
-## Next contracts to agree when needed
+```json
+{
+  "attempt_id": "attempt_demo_001",
+  "alert_id": "alert_demo_001",
+  "contact_id": "contact_demo_001",
+  "channel": "sms",
+  "attempted_at": "2026-10-12T04:01:12Z",
+  "status": "sent"
+}
+```
 
-Call start/finalization; onboarding/profile creation; contacts and settings edits; device registration/removal; alert list/detail and acknowledgment; notification retry and backup timing. Endpoint names for these are intentionally not invented here.
+channel is sms, call, or push. status is queued, sent, delivered, or failed. Acknowledgment (caregiver pressed 1 or tapped "I've got it") is stored separately with caregiver_id and acknowledged_at. If no acknowledgment arrives within ~2 minutes, A attempts the next contact by priority. C displays the alert, attempts and acknowledgment without claiming help arrived.
+
+## C07: Lost Mode location (Parent Mode → database → C)
+
+When the parent taps "I'm lost," Parent Mode starts a session and writes location points while the app is open, for at most 30 minutes:
+
+```json
+{
+  "session_id": "lost_session_demo_001",
+  "device_id": "device_demo_001",
+  "latitude": 40.9126,
+  "longitude": -73.1234,
+  "accuracy_m": 20,
+  "recorded_at": "2026-10-12T05:00:00Z"
+}
+```
+
+Only a paired device can write, only for its own family, and only while its session is active. Session start also creates a `lost` alert (C06) so delivery runs. Caregiver Mode reads the latest point per session and shows "updated X min ago, ±accuracy_m m". Coordinates above are fictional.
+
+## C08: Pairing and push subscription (C ↔ A)
+
+Pairing: a caregiver requests a 6-digit code (expires after 10 minutes, single use). Parent Mode submits the code and receives a device record:
+
+```json
+{
+  "device_id": "device_demo_001",
+  "family_id": "family_demo_001",
+  "parent_id": "parent_demo_001",
+  "paired_at": "2026-10-12T03:00:00Z"
+}
+```
+
+Push: Caregiver Mode stores the browser's push subscription (endpoint and keys) against the signed-in caregiver. A's push sender removes subscriptions the push service reports as gone. Lock-screen text never includes transcript content.
 
 ## Change process
 
-Update this document and examples in the same PR. Producer and consumer review changes before merge. Field removal/renaming, type changes, and new required fields are breaking changes; coordinate the update or provide a compatible transition. Do not silently change a contract while a teammate builds against it.
+Update this document and `examples.json` in the same PR. Producer and consumer review changes before merge. Field removal/renaming, type changes and new required fields are breaking changes; coordinate them. Do not silently change a contract while a teammate builds against it.

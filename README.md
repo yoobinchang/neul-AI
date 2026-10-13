@@ -2,47 +2,61 @@
 
 An AI phone assistant that supports families when a caregiver cannot answer.
 
-A parent calls their child's existing number. When a tested conditional-forwarding setup routes an unanswered call to Neul, the AI identifies itself, uses caregiver-provided context, and talks with the parent. The caregiver can review a call summary and receive alerts when follow-up may be needed.
+A parent calls their child's existing number. When a tested conditional-forwarding setup routes an unanswered call to Neul, the AI identifies itself, uses caregiver-provided context, and talks with the parent. The caregiver reviews call summaries in the Neul app (an installable PWA) and receives alerts when follow-up may be needed.
 
-**Status: planning scaffold. No application, database, integrations, or deployment are implemented.** This repository combines the technical-plan draft and the later team discussion. Proposals are not team approvals.
+**Status: planning scaffold. No application, database, integrations, or deployment are implemented yet.** The stack and roles are agreed (see [decisions](docs/decisions.md)); endpoint names, fields and schema remain review drafts until implemented.
 
 ## Product boundaries
 
 - The child receives the original call first.
 - The AI discloses that it is AI; no voice cloning or impersonation.
 - Caregivers enter and edit parent information through the app.
-- Neul does not provide medical advice, call emergency services automatically, or track GPS.
+- Neul does not provide medical advice or call emergency services. Escalation goes to the primary caregiver, then the backup contact.
+- Location is shared only when the parent taps "I'm lost" in Parent Mode, for at most 30 minutes. Neul never tracks location in the background.
 - Development and demo data must be fictional.
 
-## Repository ownership
+## One app, two modes
 
-| Folder | Proposed owner | Responsibility |
+| Mode | Device | Purpose |
 | --- | --- | --- |
-| `voice/` | A: Live Call | Phone setup, prompts, call events, urgent SMS/calls, Lost Mode |
-| `brain/` | B: Brain & Data | Data model, authentication/authorization, profile lookup, summaries, app API, push delivery |
-| `app/` | C: Caregiver App | Setup, profile/contact forms, call feed/detail, alerts, push registration |
-| `docs/` | Shared; B coordinates contracts | Plans and agreed interfaces |
+| Caregiver Mode | Child's phone | Setup, parent profile, contacts, call feed and detail, alerts, Lost Mode map |
+| Parent Mode (`/parent`, optional) | Parent's smartphone | Paired once by code, no login, PIN-locked; one "I'm lost" button that shares location and dials the child |
 
-These are code ownership boundaries, not separate deployment requirements. A also writes backend code. Framework-specific subfolders will be added after stack selection.
+Neul works without Parent Mode (phone line + voice clues + the family's own location app).
+
+## Roles and repository ownership
+
+| Owner | Role | Folders |
+| --- | --- | --- |
+| A | Backend & Platform Engineer: database, auth, access rules, call handling, alert delivery, push sending, pairing, contracts | `supabase/migrations/`, `supabase/functions/` (except `brain/`), `docs/contracts.md` |
+| B | AI Engineer: voice agent, AI instructions, urgency/lost detection, Lost Mode conversation, summaries, evaluation | `voice/`, `supabase/functions/brain/`, `tests/` |
+| C | Frontend Engineer (Product & Design): both app modes, PWA, push registration, Lost Mode map, usability tests | `app/` |
+| Everyone | Safety scenarios, test calls, survey outreach, demo rehearsal | `docs/` (shared) |
+
+Ownership means review responsibility, not a prohibition on helping. See [contributing](docs/contributing.md).
+
+## Stack
+
+Twilio (phone) · Vapi or Retell (voice AI, chosen in Week 1) · AI model chosen by comparison · Supabase (database, auth, functions, live updates) · Next.js PWA on Vercel · Leaflet + OpenStreetMap · TypeScript everywhere.
 
 ## Start here
 
-1. Read [the product plan](docs/plan.md) and [open decisions](docs/decisions.md).
-2. Confirm owners and a first integration milestone in [the work plan](docs/work-plan.md).
+1. Read [the product plan](docs/plan.md) and [decisions](docs/decisions.md).
+2. Find your weekly tasks in [the work plan](docs/work-plan.md).
 3. Review [the architecture](docs/architecture.md), [data model](docs/data-model.md), and [draft contracts](docs/contracts.md).
 4. Follow [the contribution workflow](docs/contributing.md) and [safety rules](docs/safety.md).
 5. Use [fictional examples](docs/examples.json) to build independently.
 
-## First integration target
+## First integration target (M0)
 
-Save one fictional completed call through B's backend boundary and display it in C's app. A can test a phone/voice provider independently, then replace the fictional call input with a real test-call event. This narrow checkpoint does not remove urgent alerts from the intended demo scope.
+Save one fictional completed call to the database and display it in C's app. A tests the phone/voice path independently, then replaces the fictional call with a real test-call event.
 
 ## Local setup
 
-There is no runnable application yet. Clone the shared repository, read the documents, and create a task branch. Runtime versions, dependencies, environment variables, and run/test commands must be added by the stack-initialization PR. Do not invent commands or add a CI workflow that reports success without checking code.
+There is no runnable application yet. The stack-initialization PR (A + C) adds the Next.js project, Supabase configuration, runtime versions, and run/test commands. Do not invent commands or add a CI workflow that reports success without checking code.
 
-Copy `.env.example` to a local `.env` only once actual variables have been documented. Never commit credentials or real family data.
+Copy `.env.example` to a local `.env` and fill in values from the team's shared secret store. Never commit credentials or real family data.
 
 ## Document status
 
-All endpoint names, JSON fields, and implementation choices in these documents are **review drafts**, except the requested initial folder layout. See [source reconciliation](docs/source-notes.md) for differences between the supplied plans and the editorial choices in this scaffold.
+See [source reconciliation](docs/source-notes.md) for how the plan PDFs, the team discussion and the 2026-10-13 build plan were combined.
