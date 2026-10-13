@@ -1,0 +1,64 @@
+{
+  "profile": {
+    "parent_id": "parent_demo_001",
+    "preferred_name": "Alex",
+    "routine": "Enjoys gardening in the morning.",
+    "family_facts": [
+      "Sam is the primary caregiver."
+    ],
+    "calming_topics": [
+      "Gardening"
+    ],
+    "topics_to_avoid": []
+  },
+  "completed_call_event": {
+    "event_id": "event_demo_001",
+    "provider_call_id": "provider_demo_001",
+    "family_id": "family_demo_001",
+    "parent_id": "parent_demo_001",
+    "started_at": "2026-10-12T04:00:00Z",
+    "ended_at": "2026-10-12T04:02:00Z",
+    "duration_seconds": 120,
+    "transcript": "Parent: When will Sam visit?\nNeul: I do not have a confirmed visit time. I can let Sam know you asked.",
+    "urgency": "routine"
+  },
+  "call_detail_states": [
+    {
+      "call_id": "call_demo_001",
+      "parent_id": "parent_demo_001",
+      "started_at": "2026-10-12T04:00:00Z",
+      "duration_seconds": 120,
+      "urgency": "routine",
+      "summary_status": "processing",
+      "summary": null
+    },
+    {
+      "call_id": "call_demo_001",
+      "parent_id": "parent_demo_001",
+      "started_at": "2026-10-12T04:00:00Z",
+      "duration_seconds": 120,
+      "urgency": "routine",
+      "summary_status": "completed",
+      "summary": "Asked when Sam would visit. No confirmed time was provided."
+    },
+    {
+      "call_id": "call_demo_001",
+      "parent_id": "parent_demo_001",
+      "started_at": "2026-10-12T04:00:00Z",
+      "duration_seconds": 120,
+      "urgency": "routine",
+      "summary_status": "failed",
+      "summary": null
+    }
+  ],
+  "empty_call_list": {
+    "items": [],
+    "next_cursor": null
+  },
+  "not_found": {
+    "error": {
+      "code": "CALL_NOT_FOUND",
+      "message": "Call not found."
+    }
+  }
+}

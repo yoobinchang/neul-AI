@@ -1,0 +1,21 @@
+# Local credentials
+.env
+.env.*
+!.env.example
+
+# JavaScript dependencies and generated output
+node_modules/
+dist/
+build/
+.expo/
+.next/
+coverage/
+
+# Python local environments and caches
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local system files
+.DS_Store
