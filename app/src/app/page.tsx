@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Activity,
+  Compass,
+  ArrowLeftRight,
   ArrowRight,
   ArrowUpRight,
   Bell,
@@ -28,8 +30,11 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import ParentMode from "@/components/ParentMode";
+import LocationPanel from "@/components/LocationPanel";
+import type { LostSession } from "@/components/types";
 
-type Tab = "home" | "calls" | "alerts" | "profile";
+type Tab = "home" | "calls" | "alerts" | "location" | "profile";
 type CallTag = "Routine" | "Follow-up" | "Flagged";
 
 type TranscriptLine = { speaker: "Mom" | "Neul"; text: string };
@@ -187,6 +192,7 @@ const NAV: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "home", label: "Home", icon: LayoutDashboard },
   { id: "calls", label: "Calls", icon: PhoneIncoming },
   { id: "alerts", label: "Alerts", icon: Bell },
+  { id: "location", label: "Location", icon: Compass },
   { id: "profile", label: "Profile", icon: UserRound },
 ];
 
@@ -229,19 +235,25 @@ function DemoNotice() {
   return (
     <div className="mb-7 flex items-start gap-3 rounded-2xl border border-[#e9e5d7] bg-[#f9f6ed] px-4 py-3 text-[12px] leading-[1.65] text-[#807a65] sm:items-center">
       <Info size={16} className="mt-0.5 shrink-0 text-[#a89363] sm:mt-0" />
-      <span><strong className="text-[#786d51]">Demo preview.</strong> All names, calls, locations and alerts are sample data. No live monitoring or emergency notifications are active.</span>
+      <span><strong className="text-[#786d51]">Demo preview.</strong> Calls and alerts use sample data. Location permission, if granted in Parent Mode, stays in this browser tab. No remote monitoring or emergency notifications are active.</span>
     </div>
   );
 }
 
 export default function Page() {
   const [tab, setTab] = useState<Tab>("home");
+  const [mode, setMode] = useState<"caregiver" | "parent">("caregiver");
+  const [lostSession, setLostSession] = useState<LostSession | null>(null);
   const [selectedCall, setSelectedCall] = useState<CallRecord | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"All" | "Flagged" | "Follow-up">("All");
   const [profile, setProfile] = useState<ParentProfile>(INITIAL_PROFILE);
   const [reviewedIds, setReviewedIds] = useState<string[]>(["alert-01"]);
   const [profileSaved, setProfileSaved] = useState(false);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("mode") === "parent") setMode("parent");
+  }, []);
 
   useEffect(() => {
     try {
@@ -281,6 +293,19 @@ export default function Page() {
     try { localStorage.setItem("neul-demo-reviewed-v1", JSON.stringify(next)); } catch { /* ignore */ }
   }
 
+  function enterParentMode() {
+    setMode("parent");
+    window.history.replaceState(null, "", `${window.location.pathname}?mode=parent`);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+
+  function returnToCaregiver() {
+    setMode("caregiver");
+    setTab("location");
+    window.history.replaceState(null, "", window.location.pathname);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+
   function saveProfile() {
     try { localStorage.setItem("neul-demo-profile-v1", JSON.stringify(profile)); } catch { /* ignore */ }
     setProfileSaved(true);
@@ -305,6 +330,10 @@ export default function Page() {
     </button>
   );
 
+  if (mode === "parent") {
+    return <ParentMode parentName={profile.name.split(" ")[0] || profile.nickname} lostSession={lostSession} onLostUpdate={setLostSession} onCaregiverMode={returnToCaregiver} />;
+  }
+
   return (
     <div className="min-h-screen bg-[#f7f8f4] text-[#2b4335]">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[256px] flex-col border-r border-[#e7ebe3] bg-[#fdfefa] px-5 py-8 lg:flex">
@@ -318,7 +347,8 @@ export default function Page() {
           <p className="text-[15px] font-bold leading-6 tracking-[-0.03em] text-[#2e583e]">A gentler way<br />to stay connected.</p>
           <p className="mt-2 text-[11px] leading-5 text-[#7e9585]">Built for the little moments that matter.</p>
         </div>
-        <p className="mt-5 px-4 text-[11px] text-[#a3afa3]">Neul · Frontend prototype v0.1</p>
+        <button type="button" onClick={enterParentMode} className="mt-5 flex min-h-[49px] w-full items-center justify-between rounded-2xl border border-[#e2eae1] bg-white px-4 text-[13px] font-bold text-[#426e4e] hover:bg-[#f1f7ee]"><span className="inline-flex items-center gap-2"><ArrowLeftRight size={17}/> Parent Mode</span><ChevronRight size={17}/></button>
+        <p className="mt-4 px-4 text-[11px] text-[#a3afa3]">Neul · Frontend prototype v0.2</p>
       </aside>
 
       <div className="lg:ml-[256px]">
@@ -328,7 +358,8 @@ export default function Page() {
             <div className="hidden items-center gap-2 text-[13px] font-semibold text-[#8a9a8c] lg:flex"><span>Caregiver workspace</span><ChevronRight size={14} /><span className="text-[#365e46]">{NAV.find((n) => n.id === tab)?.label}</span></div>
             <div className="flex items-center gap-3">
               <span className="hidden items-center gap-2 rounded-full border border-[#e7eadf] bg-white px-3 py-2 text-[11px] font-semibold text-[#8a8c79] sm:inline-flex"><span className="h-2 w-2 rounded-full bg-[#e9b06a]" /> Sample data</span>
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e6d8c8] text-[12px] font-extrabold text-[#6a6555]" aria-label="Demo caregiver Alex">AX</div>
+              <button type="button" onClick={enterParentMode} className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-[#e6f0e6] px-3 text-[11px] font-bold text-[#3f7854] transition hover:bg-[#d9e9d9] sm:px-4 sm:text-[12px]"><ArrowLeftRight size={15}/><span className="hidden min-[360px]:inline">Parent Mode</span><span className="min-[360px]:hidden">Parent</span></button>
+              <div className="hidden h-10 w-10 items-center justify-center rounded-full bg-[#e6d8c8] text-[12px] font-extrabold text-[#6a6555] sm:flex" aria-label="Demo caregiver Alex">AX</div>
             </div>
           </div>
         </header>
@@ -352,8 +383,8 @@ export default function Page() {
                     <div className="flex items-center justify-between gap-3"><span className="rounded-full bg-white/15 px-3 py-2 text-[11px] font-bold tracking-wide text-[#e5f2e6]">{profile.nickname}&apos;s wellbeing</span><Heart size={24} className="text-[#c8e6ca]" /></div>
                     <div>
                       <div className="mb-4 flex h-13 w-13 items-center justify-center rounded-2xl bg-[#cce8cf] text-[#39724f]"><Check size={26} strokeWidth={3} /></div>
-                      <h2 className="text-[30px] font-bold leading-tight tracking-[-0.055em] sm:text-[36px]">All seems calm today.</h2>
-                      <p className="mt-3 max-w-[370px] text-[13px] leading-6 text-[#d3e5d8]">No unreviewed urgent Lost Mode events in this sample. One conversation follow-up is waiting for you.</p>
+                      <h2 className="text-[30px] font-bold leading-tight tracking-[-0.055em] sm:text-[36px]">{lostSession ? "Lost Mode demo in progress." : "All seems calm today."}</h2>
+                      <p className="mt-3 max-w-[370px] text-[13px] leading-6 text-[#d3e5d8]">{lostSession ? "This is a local test only; no alert was sent. Open Location to preview the details." : "No unreviewed urgent Lost Mode events in this sample. One conversation follow-up is waiting for you."}</p>
                     </div>
                     <div className="flex items-center gap-2 border-t border-white/20 pt-5 text-[12px] text-[#d8e9db]"><Clock3 size={16} /> Last sample call · Today at 10:42 AM</div>
                   </div>
@@ -418,7 +449,8 @@ export default function Page() {
           {tab === "alerts" && (
             <div>
               <div className="mb-8"><p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#7f9987]">Your notifications</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#203e30] sm:text-[46px]">Here when it matters.</h1><p className="mt-3 text-[14px] leading-7 text-[#849288]">An organized view of situations that may deserve a little extra attention.</p></div>
-              <div className="mb-7 flex items-center gap-4 rounded-[26px] border border-[#e4ebe3] bg-white p-5 sm:p-7"><div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-[#edf5e9] text-[#5f976d]"><ShieldCheck size={24}/></div><div><h2 className="text-[16px] font-bold text-[#35583f]">No active emergencies in this demo</h2><p className="mt-1 text-[12px] leading-6 text-[#8a9c8c]">{pendingAlerts} sample {pendingAlerts === 1 ? "item needs" : "items need"} review. Real SMS, calls and push delivery are not yet connected.</p></div></div>
+              <div className="mb-7 flex items-center gap-4 rounded-[26px] border border-[#e4ebe3] bg-white p-5 sm:p-7"><div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-[#edf5e9] text-[#5f976d]"><ShieldCheck size={24}/></div><div><h2 className="text-[16px] font-bold text-[#35583f]">{lostSession ? "Lost Mode preview in this browser" : "No active emergencies in this demo"}</h2><p className="mt-1 text-[12px] leading-6 text-[#8a9c8c]">{lostSession ? "A Parent Mode demo was started on this device; no SMS, calls or push alerts were delivered." : `${pendingAlerts} sample ${pendingAlerts === 1 ? "item needs" : "items need"} review. Real SMS, calls and push delivery are not yet connected.`}</p></div></div>
+              {lostSession && <div className="mb-7 flex flex-col gap-4 rounded-[24px] border border-[#f1d8c3] bg-[#fff8ed] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"><div className="flex items-start gap-3"><MapPin className="mt-1 shrink-0 text-[#b47752]" size={23}/><div><p className="text-[15px] font-bold text-[#865f43]">Parent selected “I'm lost”</p><p className="mt-1 text-[12px] leading-6 text-[#947965]">Demo event only · {lostSession.status === "located" ? "Device position available in this tab" : "Location unavailable or pending"} · not delivered</p></div></div><button type="button" onClick={() => goTo("location")} className="min-h-[46px] shrink-0 rounded-2xl bg-[#e8d1bd] px-5 text-[13px] font-bold text-[#77553e]">View location preview <ArrowRight className="ml-1 inline" size={16}/></button></div>}
               <SectionHeading title="Alert history" eyebrow="Sample events" />
               <div className="space-y-4">
                 {ALERTS.map((alert) => {
@@ -434,6 +466,8 @@ export default function Page() {
               </div>
             </div>
           )}
+
+          {tab === "location" && <LocationPanel lostSession={lostSession} onParentMode={enterParentMode} />}
 
           {tab === "profile" && (
             <div>

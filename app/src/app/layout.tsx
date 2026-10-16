@@ -2,11 +2,11 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Neul — Caregiver Space",
-  description: "Neul caregiver frontend prototype (sample data only).",
+  title: "Neul — Caregiver & Parent Preview",
+  description: "Neul caregiver and parent frontend prototype (sample data; no emergency delivery).",
   applicationName: "Neul",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/neul-icon.svg", apple: "/neul-icon.svg" },
+  icons: { icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }, { url: "/neul-icon.svg", type: "image/svg+xml" }], apple: "/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {

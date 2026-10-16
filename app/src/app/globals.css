@@ -36,3 +36,15 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 }
 .neul-input:focus { border-color: #80b293; background: #fff; }
 ::selection { background: #d9e9d9; color: #2b4e34; }
+
+/* Parent Mode: high-contrast, generous touch targets and soft restrained motion. */
+.parent-surface {
+  background: radial-gradient(ellipse at 85% 8%, #edf4e7 0%, transparent 37%), #fafbf7;
+}
+.parent-lost-button {
+  background: linear-gradient(138deg, #cf8869 0%, #bf7159 58%, #a9594b 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .parent-lost-button { transition: none; }
+}
