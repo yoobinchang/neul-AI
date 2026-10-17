@@ -1,0 +1,46 @@
+NEUL v0.4 — NAVY BRAND + LIVE OPENSTREETMAP VIEW
+================================================
+
+This package includes the complete v0.3 frontend theme and the v0.4 Location screen.
+It does NOT change the team backend, docs, voice, or Supabase folders.
+
+WHAT CHANGED
+- Replaces placeholder graphic with an opt-in OpenStreetMap embedded map.
+- Parent taps "I'm lost" -> browser asks for this device's position.
+- Switch back to Caregiver -> Location tab -> Show real map.
+- Displays coordinates, browser-estimated accuracy and a landmark note.
+- Separate Open map and Copy location link buttons.
+- Prevents outside map service requests until the user opts in.
+- Retains the official Neul navy/gold logo, caregiver screens and parent UI.
+
+INSTALL ON MAC — DO NOT RUN IN ANOTHER PROJECT
+  cd ~/Desktop/neul-AI
+  git status    # ensure you are on feat/caregiver-ui and inspect existing changes
+  mkdir -p "$HOME/Desktop/neul-backup-before-v04"
+  cp -R app/src app/public "$HOME/Desktop/neul-backup-before-v04/"
+  cd app
+  unzip -o "$HOME/Downloads/neul-v04-real-map.zip"
+  npm run build
+  # If the build succeeds and a dev server is already running, refresh localhost:3000
+  # Otherwise run: npm run dev
+
+If you do not want any files overwritten, review archive entries before install:
+  unzip -l "$HOME/Downloads/neul-v04-real-map.zip"
+
+DEMO FLOW
+1. Open http://localhost:3000 (or a secure HTTPS Vercel deployment).
+2. Choose Parent Mode, tap I'm lost, and allow location permission.
+3. Choose Caregiver view -> Location.
+4. Choose Show real map to load the map from openstreetmap.org.
+5. Optional: Open map in new tab, or explicitly copy a location link.
+
+PRIVACY / SAFETY
+- The location is stored ONLY in state in the current browser tab.
+- There is no cross-device sharing, SMS, phone call, secure pairing, or database write.
+- Loading OpenStreetMap reveals the coordinates in the external map request.
+- The map is not intended for emergency response or real patient safety use.
+- Geolocation requires localhost or HTTPS and the user's browser permission.
+- For actual remote alerts, integrate Supabase Auth, RLS and trusted pairing with A/B.
+
+Before production deployment, run npm audit --omit=dev and resolve security issues.
+Avoid npm audit fix --force without reviewing changes.

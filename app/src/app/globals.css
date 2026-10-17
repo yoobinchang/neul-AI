@@ -2,10 +2,13 @@
 
 :root {
   color-scheme: light;
-  --background: #f7f8f4;
-  --foreground: #2b4335;
+  --background: #F6F8FC;
+  --foreground: #1F3A5F;
+  --brand-navy: #1F3A5F;
+  --brand-gold: #F5A623;
+  --brand-wave: #6FA8C7;
+  --brand-paper: #FFFFFF;
 }
-
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body {
@@ -17,34 +20,55 @@ body {
 }
 button, input, textarea { font: inherit; }
 button { cursor: pointer; }
-button:focus-visible, input:focus-visible, textarea:focus-visible {
-  outline: 3px solid #83b69a;
+button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible {
+  outline: 3px solid #F5A623;
   outline-offset: 3px;
 }
+::selection { background: #FBE2B3; color: #1F3A5F; }
 .neul-input {
   display: block;
   width: 100%;
   border-radius: 16px;
-  border: 1px solid #e6ece3;
-  background: #fafbf8;
+  border: 1px solid #DEE6F0;
+  background: #F9FBFE;
   padding: 14px 16px;
-  color: #365340;
+  color: #1F3A5F;
   font-size: 13px;
   line-height: 1.6;
   outline: none;
-  transition: border-color .2s, background .2s;
+  transition: border-color .2s, background .2s, box-shadow .2s;
 }
-.neul-input:focus { border-color: #80b293; background: #fff; }
-::selection { background: #d9e9d9; color: #2b4e34; }
-
-/* Parent Mode: high-contrast, generous touch targets and soft restrained motion. */
-.parent-surface {
-  background: radial-gradient(ellipse at 85% 8%, #edf4e7 0%, transparent 37%), #fafbf7;
+.neul-input:focus { border-color: #6FA8C7; background: #fff; box-shadow: 0 0 0 3px #6FA8C72B; }
+.neul-brand-image { object-fit: contain; filter: drop-shadow(0 3px 10px rgba(31,58,95,.05)); }
+.neul-sidebar { box-shadow: 2px 0 30px rgba(31,58,95,.025); }
+.neul-side-quote { position: relative; overflow: hidden; }
+.neul-side-quote::before {
+  content: ""; position: absolute; inset: 0 0 auto;
+  height: 4px; background: linear-gradient(90deg, #1F3A5F 0%, #6FA8C7 45%, #F5A623 100%);
 }
+.neul-navy-hero {
+  background: radial-gradient(circle at 88% 8%, rgba(111,168,199,.2), transparent 34%),
+              linear-gradient(123deg, #1F3A5F 0%, #24466D 67%, #153052 100%);
+}
+.neul-navy-hero::after {
+  content: "";
+  position: absolute; left: -20px; top: 0;
+  height: 5px; width: calc(100% + 20px);
+  background: linear-gradient(90deg, #F5A623, #FACD85 38%, #6FA8C7 100%);
+}
+/* Calm, strongly contrasted parent experience; the SOS control is navy with a warm beacon accent. */
+.parent-surface { background: radial-gradient(ellipse at 90% 3%, #E6EEF8 0%, transparent 42%), #F8FAFD; }
 .parent-lost-button {
-  background: linear-gradient(138deg, #cf8869 0%, #bf7159 58%, #a9594b 100%);
+  background: radial-gradient(circle at 50% 10%, rgba(245,166,35,.20), transparent 58%),
+              linear-gradient(145deg, #24476E 0%, #1F3A5F 55%, #112A49 100%);
+  box-shadow: 0 24px 60px -28px rgba(31,58,95,.52), inset 0 0 0 2px rgba(245,166,35,.28);
+}
+.parent-lost-button:focus-visible { outline: 5px solid #F5A623; outline-offset: 4px; }
+@media (hover: hover) {
+  .neul-navy-hero { transition: box-shadow .22s ease; }
+  .neul-navy-hero:hover { box-shadow: 0 28px 65px -36px rgba(31,58,95,.50); }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .parent-lost-button { transition: none; }
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
