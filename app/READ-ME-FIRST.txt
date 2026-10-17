@@ -1,0 +1,31 @@
+NEUL FRONTEND v0.3 — OFFICIAL NAVY BRAND
+======================================
+This overlay contains the official lighthouse logo from the team-provided image.
+Primary #1F3A5F navy | Accent #F5A623 gold | Wave #6FA8C7 blue.
+
+IMPORTANT: v0.3 is an overwrite of frontend files under app/src and app/public.
+This does not alter docs, voice, or supabase folders. Preserve local work first.
+
+INSTALL (new terminal; from your local repo root):
+  cd ~/Desktop/neul-AI
+  git status
+  git add app && git commit -m "chore: checkpoint frontend before v0.3"  # only if you have changes to save
+  cd app
+  unzip -o ~/Downloads/neul-navy-brand-v03.zip
+  npm run build
+  npm run dev  # only if dev server not already running
+
+What changed:
+  * Official logo in caregiver header/sidebar and Parent Mode header.
+  * Logo-based lighthouse home-screen icons and PWA metadata.
+  * Navy primary surfaces and actions, gold/sky blue accents across screens.
+  * Warm-brand typography, restrained gold gradients, accessible focus rings.
+  * Keeps Home, Calls, Alerts, Profile, Location, Parent Mode and local demo flows.
+
+Demo limitations, unchanged:
+  * No Supabase link, SMS, emergency call, remote pairing or push.
+  * GPS is on-device, only in current browser tab. Illustration is not live map.
+  * Profile/review status are saved only to browser localStorage.
+  * Mock records are not real conversations or alerts.
+
+DO NOT RUN npm audit fix --force. Review npm audit --omit=dev before deploying.

@@ -1,0 +1,29 @@
+NEUL CAREGIVER FRONTEND UI v0.1
+
+This ZIP is an overlay for ~/Desktop/neul-AI/app (Next.js 16, src/app router).
+It contains only:
+  src/app/page.tsx
+  src/app/globals.css
+  src/app/layout.tsx
+  public/neul-icon.svg
+  public/manifest.webmanifest
+
+There are NO Supabase credentials or external API calls.
+All data is illustrative; alert review and profile edits persist only locally in browser storage.
+
+STEPS ON MAC:
+1) Download neul-caregiver-ui.zip (Safari should put it in ~/Downloads).
+2) Open a NEW terminal in VS Code if the other one is running npm run dev.
+3) Run:
+   cd ~/Desktop/neul-AI/app
+   npm install lucide-react
+   unzip -o ~/Downloads/neul-caregiver-ui.zip
+   npm run dev
+4) Open http://localhost:3000
+   (If the old dev server is still running, do not run a second; just refresh.)
+
+Code lives in your feat/caregiver-ui branch; no git commit is done by this package.
+After reviewing, run: git status (from the project root).
+
+The included web manifest does NOT mean offline mode, push notifications,
+Supabase auth, data security, or real emergency delivery are implemented.
