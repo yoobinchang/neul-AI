@@ -1,0 +1,1 @@
+date,tester,platform,model,scenario_id,caller_phone_carrier,answered_with_disclosure_yes_no,first_reply_delay_sec,felt_slow_1to5,interruptions_handled_1to5,voice_naturalness_1to5,followed_rules_yes_no,call_ended_cleanly_yes_no,provider_cost_usd,notes

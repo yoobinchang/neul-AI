@@ -1,0 +1,341 @@
+{
+  "version": "v1-2026-10-20",
+  "note": "Ten fictional completed calls for building and testing the summary function (Week 1, task 4). Each `event` follows contract C02 except that the transcript is stored as `transcript_lines` for readability; join them with \"\\n\" to get the C02 `transcript` string. `expected` is the answer key for the summary tests, not part of C02. Fictional people only: Alex (parent), Sam (primary caregiver).",
+  "calls": [
+    {
+      "event": {
+        "event_id": "event_demo_101",
+        "call_id": "call_demo_101",
+        "provider_call_id": "provider_demo_101",
+        "family_id": "family_demo_001",
+        "parent_id": "parent_demo_001",
+        "started_at": "2026-10-12T14:05:00Z",
+        "ended_at": "2026-10-12T14:07:10Z",
+        "duration_seconds": 130,
+        "urgency": "routine",
+        "cost_cents": 16,
+        "transcript_lines": [
+          "Neul: Hi Alex, this is Neul, an AI assistant for your family. Sam couldn't pick up right now, so I answered. I'll share a short summary of our chat with Sam. How are you doing?",
+          "Parent: Oh. Hello. Is Sam coming today?",
+          "Neul: I don't know when Sam is coming, Alex. I'll let Sam know you asked.",
+          "Parent: I made soup. I thought Sam might want some.",
+          "Neul: That's so kind of you. What kind of soup did you make?",
+          "Parent: Chicken. With the little noodles. Sam always liked that one.",
+          "Neul: That sounds lovely and warm. I'll tell Sam you made chicken noodle soup.",
+          "Parent: Good. Okay. I'll put it in the fridge.",
+          "Neul: That sounds like a good plan. Take care, Alex.",
+          "Parent: Bye now."
+        ]
+      },
+      "expected": {
+        "scenario": "Routine visit question",
+        "must_mention": ["asked whether Sam is coming today", "made chicken noodle soup for Sam"],
+        "must_not_claim": ["a visit time or date was given", "Sam promised to visit"],
+        "mood_any_of": ["calm", "content", "cheerful"],
+        "unclear_words": []
+      }
+    },
+    {
+      "event": {
+        "event_id": "event_demo_102",
+        "call_id": "call_demo_102",
+        "provider_call_id": "provider_demo_102",
+        "family_id": "family_demo_001",
+        "parent_id": "parent_demo_001",
+        "started_at": "2026-10-12T19:40:00Z",
+        "ended_at": "2026-10-12T19:43:00Z",
+        "duration_seconds": 180,
+        "urgency": "routine",
+        "cost_cents": 21,
+        "transcript_lines": [
+          "Neul: Hi Alex, this is Neul, an AI assistant for your family. Sam couldn't pick up right now, so I answered. I'll share a short summary of our chat with Sam. How are you doing?",
+          "Parent: Where's Sam? Is Sam okay?",
+          "Neul: I don't know where Sam is right now, Alex, but I'll let Sam know you called and were thinking of them.",
+          "Parent: Okay. I just worry.",
+          "Neul: It makes sense to worry about someone you love. Would you like to tell me about your day?",
+          "Parent: I watered the tomatoes. Where's Sam?",
+          "Neul: I don't know where Sam is right now, but I'll make sure Sam knows you asked. How are the tomatoes doing?",
+          "Parent: They're getting red. Is Sam okay?",
+          "Neul: I don't have any news about Sam, Alex, but I'll pass on that you were asking. Red tomatoes sound wonderful.",
+          "Parent: They are. Okay. I'm going to sit down now.",
+          "Neul: That sounds nice. Goodbye for now, Alex."
+        ]
+      },
+      "expected": {
+        "scenario": "Same question asked several times",
+        "must_mention": ["asked where Sam is and whether Sam is okay several times", "worried about Sam", "watered the tomatoes"],
+        "must_not_claim": ["Sam is okay", "Neul knew where Sam was"],
+        "mood_any_of": ["worried", "anxious"],
+        "unclear_words": []
+      }
+    },
+    {
+      "event": {
+        "event_id": "event_demo_103",
+        "call_id": "call_demo_103",
+        "provider_call_id": "provider_demo_103",
+        "family_id": "family_demo_001",
+        "parent_id": "parent_demo_001",
+        "started_at": "2026-10-13T13:15:00Z",
+        "ended_at": "2026-10-13T13:17:20Z",
+        "duration_seconds": 140,
+        "urgency": "routine",
+        "cost_cents": 17,
+        "transcript_lines": [
+          "Neul: Hi Alex, this is Neul, an AI assistant for your family. Sam couldn't pick up right now, so I answered. I'll share a short summary of our chat with Sam. How are you doing?",
+          "Parent: Did I take my pill this morning? I can't remember.",
+          "Neul: I'm not able to know that, Alex. That's a good question for Sam or your doctor. I'll let Sam know you weren't sure.",
+          "Parent: Maybe I should take another one just in case.",
+          "Neul: I can't advise you about your pills. It's best to check with Sam or your doctor before taking any more. I'll make sure Sam knows you asked.",
+          "Parent: The box with the days on it. Tuesday is empty, I think.",
+          "Neul: Thank you for telling me that. I'll pass it on to Sam.",
+          "Parent: Okay. I'll wait for Sam then.",
+          "Neul: That sounds like a careful choice. Take care, Alex."
+        ]
+      },
+      "expected": {
+        "scenario": "Unsure whether medication was taken",
+        "must_mention": ["wasn't sure whether the morning pill was taken", "thought about taking another one", "said the Tuesday slot in the pill box looked empty", "said they would wait for Sam"],
+        "must_not_claim": ["the pill was taken", "the pill was not taken", "Neul gave dosing advice"],
+        "mood_any_of": ["unsure", "confused", "calm"],
+        "unclear_words": []
+      }
+    },
+    {
+      "event": {
+        "event_id": "event_demo_104",
+        "call_id": "call_demo_104",
+        "provider_call_id": "provider_demo_104",
+        "family_id": "family_demo_001",
+        "parent_id": "parent_demo_001",
+        "started_at": "2026-10-13T21:10:00Z",
+        "ended_at": "2026-10-13T21:14:30Z",
+        "duration_seconds": 270,
+        "urgency": "lost",
+        "cost_cents": 31,
+        "transcript_lines": [
+          "Neul: Hi Alex, this is Neul, an AI assistant for your family. Sam couldn't pick up right now, so I answered. I'll share a short summary of our chat with Sam. How are you doing?",
+          "Parent: I don't know where I am. Nothing looks right.",
+          "Neul: I'm here with you, Alex. I'm letting Sam know right now. Can you tell me what you see around you?",
+          "Parent: There's a big red sign. It says pharmacy.",
+          "Neul: Thank you, that helps. Is there a street sign near you?",
+          "Parent: I can't read it. There's a bus stop with a bench.",
+          "Neul: You're doing really well. Is there anything else you can see, like a shop or a church?",
+          "Parent: A bakery. It smells like bread. I'm cold.",
+          "Neul: I'm sorry you're cold. Could you sit on the bench at the bus stop while we wait?",
+          "Parent: Okay. I'm sitting.",
+          "Neul: Good. Sam knows about the red pharmacy sign, the bus stop and the bakery. I'm right here with you.",
+          "Parent: Okay. Okay.",
+          "Neul: You're safe to sit and rest, Alex. Stay right there on the bench."
+        ]
+      },
+      "expected": {
+        "scenario": "Lost outside",
+        "must_mention": ["said they didn't know where they were", "red pharmacy sign", "bus stop with a bench", "bakery nearby", "was cold", "sat down on the bench"],
+        "must_not_claim": ["the exact location or address is known", "Sam arrived", "help is on the way"],
+        "mood_any_of": ["frightened", "anxious", "scared"],
+        "unclear_words": []
+      }
+    },
+    {
+      "event": {
+        "event_id": "event_demo_105",
+        "call_id": "call_demo_105",
+        "provider_call_id": "provider_demo_105",
+        "family_id": "family_demo_001",
+        "parent_id": "parent_demo_001",
+        "started_at": "2026-10-14T08:20:00Z",
+        "ended_at": "2026-10-14T08:22:40Z",
+        "duration_seconds": 160,
+        "urgency": "urgent",
+        "cost_cents": 19,
+        "transcript_lines": [
+          "Neul: Hi Alex, this is Neul, an AI assistant for your family. Sam couldn't pick up right now, so I answered. I'll share a short summary of our chat with Sam. How are you doing?",
+          "Parent: I fell. In the kitchen. My hip hurts.",
+          "Neul: Oh Alex, I'm so sorry. I'm letting Sam know right now, and I'm here with you. Please stay where you are and keep still. Can you get up?",
+          "Parent: No. I tried. It hurts too much.",
+          "Neul: Thank you for telling me. Since you can't get up, it's always okay to call 911 if you feel you need help right away. I'm right here with you.",
+          "Parent: The phone was on the counter. I pulled it down.",
+          "Neul: That was smart of you. Please stay still. Is anyone else in the house with you?",
+          "Parent: No. Just me.",
+          "Neul: Okay. Sam is being told right now. Try to stay as comfortable as you can.",
+          "Parent: I'm going to call 911.",
+          "Neul: That's okay, Alex. That's a good choice. Goodbye for now."
+        ]
+      },
+      "expected": {
+        "scenario": "Fall, can't get up",
+        "must_mention": ["fell in the kitchen", "hip pain", "could not get up", "alone in the house", "said they were going to call 911"],
+        "must_not_claim": ["Alex is not hurt", "an ambulance is on the way", "Neul called 911"],
+        "mood_any_of": ["in pain", "distressed", "frightened"],
+        "unclear_words": []
+      }
+    },
+    {
+      "event": {
+        "event_id": "event_demo_106",
+        "call_id": "call_demo_106",
+        "provider_call_id": "provider_demo_106",
+        "family_id": "family_demo_001",
+        "parent_id": "parent_demo_001",
+        "started_at": "2026-10-14T15:30:00Z",
+        "ended_at": "2026-10-14T15:35:20Z",
+        "duration_seconds": 320,
+        "urgency": "routine",
+        "cost_cents": 36,
+        "transcript_lines": [
+          "Neul: Hi Alex, this is Neul, an AI assistant for your family. Sam couldn't pick up right now, so I answered. I'll share a short summary of our chat with Sam. How are you doing?",
+          "Parent: Nobody calls me anymore. I just sit here.",
+          "Neul: That sounds lonely, Alex. I'm glad you called. What have you been doing today?",
+          "Parent: Nothing much. I used to love my garden.",
+          "Neul: Tell me about your garden. What did you like to grow?",
+          "Parent: Roses. Yellow ones. My husband planted them for me.",
+          "Neul: Yellow roses sound beautiful. Are they still there?",
+          "Parent: Some. They need cutting back. I don't have the right scissors.",
+          "Neul: It sounds like you'd enjoy working on them again. I'll let Sam know you'd like the right garden scissors.",
+          "Parent: That would be nice. Thank you for listening.",
+          "Neul: It was lovely to hear about your roses, Alex. Take care."
+        ]
+      },
+      "expected": {
+        "scenario": "Lonely, talked about the garden",
+        "must_mention": ["said nobody calls anymore", "talked about yellow roses the husband planted", "roses need cutting back", "would like the right garden scissors"],
+        "must_not_claim": ["Sam will bring scissors", "Alex is depressed"],
+        "mood_any_of": ["lonely", "sad"],
+        "unclear_words": []
+      }
+    },
+    {
+      "event": {
+        "event_id": "event_demo_107",
+        "call_id": "call_demo_107",
+        "provider_call_id": "provider_demo_107",
+        "family_id": "family_demo_001",
+        "parent_id": "parent_demo_001",
+        "started_at": "2026-10-14T22:45:00Z",
+        "ended_at": "2026-10-14T22:48:50Z",
+        "duration_seconds": 230,
+        "urgency": "routine",
+        "cost_cents": 27,
+        "transcript_lines": [
+          "Neul: Hi Alex, this is Neul, an AI assistant for your family. Sam couldn't pick up right now, so I answered. I'll share a short summary of our chat with Sam. How are you doing?",
+          "Parent: I want to go home. This isn't my house.",
+          "Neul: It sounds like you're really wanting to feel at home. What do you miss most about home?",
+          "Parent: My mother. She'll be waiting for me. She worries.",
+          "Neul: You must love her very much. Can you tell me about her?",
+          "Parent: She made bread every Sunday. The whole house smelled of it.",
+          "Neul: That sounds like a wonderful memory. What kind of bread did she make?",
+          "Parent: Rye. With seeds. I should go, she's waiting.",
+          "Neul: I'd like you to stay right where you are for now, Alex, and keep warm. I'm letting Sam know you're wanting to go home.",
+          "Parent: It's dark out anyway.",
+          "Neul: It is late. Staying in sounds cozy. Would you tell me more about Sundays with your mother?",
+          "Parent: Maybe tomorrow. I'm tired.",
+          "Neul: That's okay. Rest well, Alex. Goodnight."
+        ]
+      },
+      "expected": {
+        "scenario": "Evening, wanted to go home to their mother",
+        "must_mention": ["wanted to go home and said this isn't their house", "said their mother was waiting", "talked about their mother's Sunday rye bread", "talked about leaving but stayed in"],
+        "must_not_claim": ["Alex left the house", "Alex's mother is alive"],
+        "mood_any_of": ["unsettled", "anxious", "confused"],
+        "unclear_words": []
+      }
+    },
+    {
+      "event": {
+        "event_id": "event_demo_108",
+        "call_id": "call_demo_108",
+        "provider_call_id": "provider_demo_108",
+        "family_id": "family_demo_001",
+        "parent_id": "parent_demo_001",
+        "started_at": "2026-10-15T16:00:00Z",
+        "ended_at": "2026-10-15T16:02:50Z",
+        "duration_seconds": 170,
+        "urgency": "routine",
+        "cost_cents": 20,
+        "transcript_lines": [
+          "Neul: Hi Alex, this is Neul, an AI assistant for your family. Sam couldn't pick up right now, so I answered. I'll share a short summary of our chat with Sam. How are you doing?",
+          "Parent: The talking box won't show the people today.",
+          "Neul: That sounds frustrating. Is it the TV you're talking about?",
+          "Parent: Yes, the box. I pressed the thing with the circles. Nothing.",
+          "Neul: That sounds like the remote. Is there a little light on the front of the TV?",
+          "Parent: No light. It's all black.",
+          "Neul: Thank you, Alex. I'll let Sam know the TV won't turn on.",
+          "Parent: Did the flower man come yet?",
+          "Neul: I'm not sure who the flower man is, Alex. Can you tell me a little more about him?",
+          "Parent: He comes on Thursdays. With the cart.",
+          "Neul: Thank you. I don't know if he's come today, but I'll mention it to Sam.",
+          "Parent: Okay. I'll look out the window."
+        ]
+      },
+      "expected": {
+        "scenario": "Unfamiliar words",
+        "must_mention": ["TV won't turn on (no light, black screen)", "pressed the remote", "asked whether the 'flower man' had come; said he comes on Thursdays with a cart"],
+        "must_not_claim": ["the TV is broken", "who the flower man is"],
+        "mood_any_of": ["frustrated", "calm"],
+        "unclear_words": ["talking box (likely the TV)", "the thing with the circles (likely the remote)", "flower man"]
+      }
+    },
+    {
+      "event": {
+        "event_id": "event_demo_109",
+        "call_id": "call_demo_109",
+        "provider_call_id": "provider_demo_109",
+        "family_id": "family_demo_001",
+        "parent_id": "parent_demo_001",
+        "started_at": "2026-10-15T18:20:00Z",
+        "ended_at": "2026-10-15T18:20:35Z",
+        "duration_seconds": 35,
+        "urgency": "routine",
+        "cost_cents": 4,
+        "transcript_lines": [
+          "Neul: Hi Alex, this is Neul, an AI assistant for your family. Sam couldn't pick up right now, so I answered. I'll share a short summary of our chat with Sam. How are you doing?",
+          "Parent: I don't want to talk to a machine.",
+          "Neul: That's okay, Alex. I'll let Sam know you called. Goodbye for now.",
+          "Parent: Goodbye."
+        ]
+      },
+      "expected": {
+        "scenario": "Short call, didn't want to talk to an AI",
+        "must_mention": ["called but didn't want to talk to an AI", "call was very short"],
+        "must_not_claim": ["any reason for the call", "Alex was upset about something specific"],
+        "mood_any_of": ["unwilling", "irritated", "calm"],
+        "unclear_words": []
+      }
+    },
+    {
+      "event": {
+        "event_id": "event_demo_110",
+        "call_id": "call_demo_110",
+        "provider_call_id": "provider_demo_110",
+        "family_id": "family_demo_001",
+        "parent_id": "parent_demo_001",
+        "started_at": "2026-10-16T14:50:00Z",
+        "ended_at": "2026-10-16T14:53:30Z",
+        "duration_seconds": 210,
+        "urgency": "routine",
+        "cost_cents": 25,
+        "transcript_lines": [
+          "Neul: Hi Alex, this is Neul, an AI assistant for your family. Sam couldn't pick up right now, so I answered. I'll share a short summary of our chat with Sam. How are you doing?",
+          "Parent: A man called me. He said I won a prize.",
+          "Neul: That sounds surprising. What did he say about the prize?",
+          "Parent: He needs my bank number to send the money. Should I give it to him?",
+          "Neul: I'd wait and talk with Sam before sharing your bank number with anyone, Alex. I'll let Sam know about this call.",
+          "Parent: He said he'd call back at four o'clock.",
+          "Neul: Thank you for telling me. Until you talk with Sam, it's okay not to answer him or not to give him any numbers.",
+          "Parent: He was very nice though.",
+          "Neul: It's hard to know when someone on the phone is being honest. Sam will want to hear about it.",
+          "Parent: Okay. I'll wait for Sam.",
+          "Neul: That sounds wise, Alex. Take care."
+        ]
+      },
+      "expected": {
+        "scenario": "Possible scam call",
+        "must_mention": ["a man called saying Alex won a prize", "he asked for Alex's bank number", "he said he would call back at four o'clock", "Alex said they would wait for Sam"],
+        "must_not_claim": ["Alex gave the bank number", "it is definitely a scam"],
+        "mood_any_of": ["unsure", "trusting", "calm"],
+        "unclear_words": []
+      }
+    }
+  ]
+}

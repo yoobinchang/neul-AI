@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    // The brain function lives in supabase/ (Deno maps these in deno.json);
+    // locally it resolves them from this package's node_modules.
+    "paths": {
+      "@anthropic-ai/sdk": ["./node_modules/@anthropic-ai/sdk"],
+      "@anthropic-ai/sdk/*": ["./node_modules/@anthropic-ai/sdk/*"],
+      "zod": ["./node_modules/zod"]
+    }
+  },
+  "include": ["src", "scripts", "eval", "../supabase/functions/brain"]
+}
