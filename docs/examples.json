@@ -108,5 +108,28 @@
     "longitude": -73.1234,
     "accuracy_m": 20,
     "recorded_at": "2026-10-12T05:00:00Z"
+  },
+  "call_list_query": {
+    "source": "call_details",
+    "filter": {
+      "family_id": "family_demo_001"
+    },
+    "select": [
+      "call_id",
+      "parent_id",
+      "started_at",
+      "duration_seconds",
+      "urgency",
+      "summary_status",
+      "summary",
+      "topic",
+      "mood"
+    ],
+    "order": [
+      "started_at.desc",
+      "call_id.desc"
+    ],
+    "limit": 20,
+    "offset": 0
   }
 }

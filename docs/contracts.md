@@ -1,6 +1,6 @@
 # Interface contracts
 
-**Status: draft examples for review, not implemented.** A maintains this document; B and C review the parts they produce or consume. Agree C01–C03 first (Week 1), then the rest as features need them.
+**Status: agreed interface contracts; implementation is incremental.** A maintains this document; B and C review changes to the parts they produce or consume. The caregiver integration implements C03 reads, paginated C04 reads (manual refresh), C05 edits and C06 acknowledgment persistence. See [setup and implementation scope](supabase-setup.md).
 
 ## Common conventions
 
@@ -103,6 +103,8 @@ Finalizing sets summary_status to processing and fires the trigger that calls B'
 On failure, summary_status is failed and summary is null; retries are bounded. An exact replay of event_id changes nothing; reusing event_id with different content is rejected (EVENT_CONFLICT). mood is a tentative description, not a diagnosis.
 
 ## C03: Call detail (database → C)
+
+The view also exposes `family_id` as an additive filter column for multi-family workspaces; the selected C03 fields below are unchanged.
 
 C reads one row from the `call_details` view (row-level security restricts it to the caregiver's family):
 
