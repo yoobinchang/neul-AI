@@ -24,6 +24,8 @@ let outputTokens = 0;
 const GRADER_MODEL = "claude-opus-5-5";
 const PRICE_PER_MTOK = { input: 4, output: 20 }; // claude-opus-5-5
 const NAMES = { parentName: "Alex", caregiverName: "Sam" };
+// SUMMARY_MODEL=claude-sonnet-5-5 npm run eval:summaries  to compare another model.
+const SUMMARY_MODEL = process.env.SUMMARY_MODEL ?? DEFAULT_SUMMARY_MODEL;
 const countUsage = (usage: { input_tokens: number; output_tokens: number }) => {
   inputTokens += usage.input_tokens;
   outputTokens += usage.output_tokens;
@@ -101,7 +103,7 @@ const rows = await Promise.all(
   calls.map(async (fixture) => {
     const call = toCompletedCall(fixture);
     const started = performance.now();
-    const result = await summarizeCall(client, call, { ...NAMES, onUsage: countUsage }).catch((error) => {
+    const result = await summarizeCall(client, call, { ...NAMES, model: SUMMARY_MODEL, onUsage: countUsage }).catch((error) => {
       caught ??= error;
       return null;
     });
@@ -146,7 +148,7 @@ const costUsd = (inputTokens * PRICE_PER_MTOK.input + outputTokens * PRICE_PER_M
 writeFileSync(
   new URL("results.json", outDir),
   JSON.stringify(
-    { prompt_version: SUMMARY_PROMPT_VERSION, model: DEFAULT_SUMMARY_MODEL, grader: GRADER_MODEL, cost_usd: costUsd, rows },
+    { prompt_version: SUMMARY_PROMPT_VERSION, model: SUMMARY_MODEL, grader: GRADER_MODEL, cost_usd: costUsd, rows },
     null,
     2,
   ),

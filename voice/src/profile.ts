@@ -1,29 +1,18 @@
 import { readFileSync } from "node:fs";
+import type { CallContext, ParentProfile } from "../../supabase/functions/brain/call-context.ts";
 
-// Parent profile fields as they appear in docs/examples.json. The live version
-// arrives through call context C01 (Week 2); until then every script uses this
-// fictional profile so the voice agent and the model comparison stay in sync.
-export interface ParentProfile {
-  parent_id: string;
-  preferred_name: string;
-  routine: string;
-  family_facts: string[];
-  calming_topics: string[];
-  topics_to_avoid: string[];
-}
-
-export interface CallContext {
-  profile: ParentProfile;
-  caregiver_name: string;
-}
-
+// Local scripts (chat, model eval, print) use the fictional Alex/Sam family from
+// docs/examples.json, shaped like the C01 context the live webhook receives.
 const examplesUrl = new URL("../../docs/examples.json", import.meta.url);
 
 export function loadDemoContext(): CallContext {
   const examples = JSON.parse(readFileSync(examplesUrl, "utf8"));
   return {
-    profile: examples.profile as ParentProfile,
-    // Not a profile field yet; matches "Sam is the primary caregiver." in examples.json.
-    caregiver_name: "Sam",
+    call_id: "call_demo_001",
+    family_id: "family_demo_001",
+    context_status: "resolved",
+    parent: examples.profile as ParentProfile,
+    // Matches "Sam is the primary caregiver." in examples.json.
+    primary_contact: { contact_id: "contact_demo_001", display_name: "Sam", phone_number: "+12025550102" },
   };
 }

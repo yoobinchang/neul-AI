@@ -1,4 +1,5 @@
-import { buildInstructions, INSTRUCTIONS_VERSION, openingLine } from "./instructions.js";
+import { agentVariables } from "../../supabase/functions/brain/call-context.ts";
+import { buildInstructions, INSTRUCTIONS_VERSION } from "./instructions.js";
 import { loadDemoContext } from "./profile.js";
 
 // One definition for both platforms, so the D04 comparison measures the
@@ -13,13 +14,14 @@ export interface AgentSpec {
   language: string;
 }
 
+// The fictional Alex/Sam profile filled in, for the chat, the model eval and Vapi.
 export function demoAgentSpec(): AgentSpec {
-  const context = loadDemoContext();
+  const variables = agentVariables(loadDemoContext());
   return {
     name: `neul-demo-${INSTRUCTIONS_VERSION}`,
     instructionsVersion: INSTRUCTIONS_VERSION,
-    firstMessage: openingLine(context),
-    instructions: buildInstructions(context),
+    firstMessage: variables.opening_line,
+    instructions: buildInstructions(variables),
     maxCallSeconds: 15 * 60,
     endCallAfterSilenceSeconds: 30,
     language: "en-US",

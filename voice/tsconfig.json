@@ -5,6 +5,8 @@
     "moduleResolution": "NodeNext",
     "strict": true,
     "noEmit": true,
+    // brain/ files import each other as ./x.ts, which Supabase's Deno runtime needs.
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "types": ["node"],
@@ -13,8 +15,11 @@
     "paths": {
       "@anthropic-ai/sdk": ["./node_modules/@anthropic-ai/sdk"],
       "@anthropic-ai/sdk/*": ["./node_modules/@anthropic-ai/sdk/*"],
-      "zod": ["./node_modules/zod"]
+      "zod": ["./node_modules/zod"],
+      "@supabase/supabase-js": ["./node_modules/@supabase/supabase-js"]
     }
   },
-  "include": ["src", "scripts", "eval", "../supabase/functions/brain"]
+  "include": ["src", "scripts", "eval", "../tests/brain", "../supabase/functions/brain"],
+  // index.ts is the Deno entry point (Deno.serve); everything it calls is checked here.
+  "exclude": ["../supabase/functions/brain/index.ts"]
 }

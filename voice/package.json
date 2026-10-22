@@ -13,13 +13,17 @@
     "print:instructions": "node --import tsx scripts/print-instructions.ts",
     "typecheck": "tsc --noEmit",
     "chat": "node --env-file-if-exists=../.env --import tsx eval/chat.ts",
-    "eval:summaries": "node --env-file-if-exists=../.env --import tsx eval/run-summary-eval.ts"
+    "eval:summaries": "node --env-file-if-exists=../.env --import tsx eval/run-summary-eval.ts",
+    "test:brain": "node --import tsx --test ../tests/brain/brain.test.ts",
+    "update:retell": "node --env-file-if-exists=../.env --import tsx scripts/update-retell-agent.ts",
+    "eval:alerts": "node --env-file-if-exists=../.env --import tsx eval/run-alert-eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "2.117.2",
     "@types/node": "^22.20.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
