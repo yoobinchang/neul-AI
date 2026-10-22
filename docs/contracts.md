@@ -138,11 +138,12 @@ C updates the `parents` row directly. Editable fields:
   "routine": "Enjoys gardening in the morning.",
   "family_facts": ["Sam is the primary caregiver."],
   "calming_topics": ["Gardening"],
-  "topics_to_avoid": []
+  "topics_to_avoid": [],
+  "phone_number": "+12025550101"
 }
 ```
 
-Row-level security allows edits only by caregivers of that family. Database constraints enforce: preferred_name nonempty, max 100 characters; routine max 2000; arrays max 20 items, 300 characters each. IDs and family ownership are not editable. Changes apply to the next C01 lookup. Initial profile creation is part of onboarding and needs its own contract.
+Row-level security allows edits only by caregivers of that family. Database constraints enforce: preferred_name nonempty, max 100 characters; routine max 2000; arrays max 20 items, 300 characters each; phone_number must be null or valid E.164 format. IDs and family ownership are not editable. Changes apply to the next C01 lookup. Initial profile creation is part of onboarding and needs its own contract.
 
 ## C06: Alert record and delivery attempts (B → A → C)
 
