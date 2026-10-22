@@ -18,6 +18,7 @@ await db.exec(`
   grant execute on function auth.uid() to authenticated, anon;
 `);
 await db.exec(await readFile(new URL('supabase/migrations/202610200001_caregiver_foundation.sql', root), 'utf8'));
+await db.exec(await readFile(new URL('supabase/migrations/202610220001_parent_phone_number.sql', root), 'utf8'));
 const seed = await readFile(new URL('supabase/seed.sql', root), 'utf8');
 await db.exec(seed);
 await db.exec(seed); // Replay must not duplicate fixtures.
@@ -46,6 +47,30 @@ async function count(sql, expected) { const r = await db.query(sql); assert.equa
 await test('seed is repeatable: one family, ten calls, two alerts', async () => {
  await count(`select count(*) n from calls where family_id='${FA}'`,10);
  await count(`select count(*) n from alerts where family_id='${FA}'`,2);
+});
+await test('demo profile and contact roles match the AI handoff', async () => {
+ const parent = (await db.query(`select preferred_name, phone_number from parents where parent_id='${PA}'`)).rows[0];
+ assert.equal(parent.preferred_name, 'Alex');
+ assert.equal(parent.phone_number, '+12025550101');
+ const contacts = (await db.query(`select display_name, priority from contacts where family_id='${FA}' order by priority`)).rows;
+ assert.deepEqual(contacts, [{display_name:'Sam',priority:1},{display_name:'Jordan',priority:2}]);
+});
+await test('phone edits persist, allow null, validate format and remain family-scoped', async () => {
+ await as(A, async () => {
+  await db.exec(`update parents set phone_number='+12025550109' where parent_id='${PA}'`);
+  assert.equal((await db.query(`select phone_number from parents where parent_id='${PA}'`)).rows[0].phone_number,'+12025550109');
+  for (const invalid of ['', '12025550101', '+02025550101', '+1234567', '+1234567890123456', '+1 2025550101'])
+   await denied(`update parents set phone_number='${invalid}' where parent_id='${PA}'`);
+  await db.exec(`update parents set phone_number=null where parent_id='${PA}'`);
+ });
+ await as(B, async () => {
+  const result=await db.query(`update parents set phone_number='+12025550108' where parent_id='${PA}' returning parent_id`);
+  assert.equal(result.rows.length,0);
+ });
+ await as(A, async () => {
+  assert.equal((await db.query(`select phone_number from parents where parent_id='${PA}'`)).rows[0].phone_number,null);
+ });
+ await as('',()=>denied(`update parents set phone_number='+12025550108' where parent_id='${PA}'`),'anon');
 });
 await test('owner can read C03 view and all three summary states', () => as(A, async () => {
  await count('select count(*) n from call_details',10);
