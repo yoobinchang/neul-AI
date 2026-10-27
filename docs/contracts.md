@@ -135,6 +135,7 @@ C updates the `parents` row directly. Editable fields:
 ```json
 {
   "preferred_name": "Alex",
+  "phone_number": "+12025550101",
   "routine": "Enjoys gardening in the morning.",
   "family_facts": ["Sam is the primary caregiver."],
   "calming_topics": ["Gardening"],
@@ -142,7 +143,9 @@ C updates the `parents` row directly. Editable fields:
 }
 ```
 
-Row-level security allows edits only by caregivers of that family. Database constraints enforce: preferred_name nonempty, max 100 characters; routine max 2000; arrays max 20 items, 300 characters each. IDs and family ownership are not editable. Changes apply to the next C01 lookup. Initial profile creation is part of onboarding and needs its own contract.
+Row-level security allows edits only by caregivers of that family. Database constraints enforce: preferred_name nonempty, max 100 characters; routine max 2000; arrays max 20 items, 300 characters each. phone_number is nullable; non-null values must match `^\+[1-9][0-9]{7,14}$` (E.164). Omit it to preserve the existing value; send null to clear it, not an empty string. IDs and family ownership are not editable. Changes apply to the next C01 lookup. Initial profile creation is part of onboarding and needs its own contract.
+
+The brain inbound handler reads this number to distinguish the parent from other callers. Its current null fallback treats every caller to the family's Neul number as the parent; set a verified demo number in the hosted database before live calls. C still needs to add a "Parent's phone number" form field. Phone-number matching is routing context, not strong identity verification.
 
 ## C06: Alert record and delivery attempts (B → A → C)
 
