@@ -5,7 +5,7 @@ This slice implements email/password authentication, family-scoped reads, C05 pr
 ## Apply to a development project
 
 1. In the Supabase SQL editor, run `supabase/migrations/202610200001_caregiver_foundation.sql` **once**. The transaction creates the tables, RLS policies, column grants, and security-invoker `call_details` view. If this project already has tables with these names, reconcile that schema before running the migration; do not drop existing tables.
-2. Run `supabase/seed.sql`. It adds one fictional family, one parent, two contacts, ten calls (including processing and failed summaries), and two alerts. Repeating it does not duplicate or overwrite rows. It does not create login credentials or grant anyone access.
+2. Run `supabase/migrations/202610220001_parent_phone_number.sql` **once**, after the foundation migration. Then run `supabase/seed.sql`. It adds one fictional family, one parent, two contacts, ten calls (including processing and failed summaries), and two alerts. Repeating it does not duplicate or overwrite rows. It does not create login credentials or grant anyone access.
 3. Enable the email/password provider in Supabase Auth. Keep email confirmation enabled. Configure Site URL and allowed redirect URLs for `http://localhost:3000` and your deployed app URL. Create a test account through the app and confirm its email. No test password is committed.
 4. A trusted administrator connects that confirmed account to the demo family in the SQL editor. Replace the example email with the exact test account address. Verify the returned user ID first:
 
@@ -31,11 +31,19 @@ This slice implements email/password authentication, family-scoped reads, C05 pr
 5. Copy `app/.env.example` to `app/.env.local` and supply the project URL and public anon/publishable key. **Never put a service-role key in the app.** In Vercel, set the same two variables and use `app` as Root Directory, then rebuild. Public environment variables are embedded at build time.
 6. In `app`, run `npm ci` and `npm run dev`. Sign in with the assigned account. Ten calls and two alerts should appear. Edit the profile and reload to verify persistence.
 
+## Demo identity and phone numbers
+
+The fictional family uses Alex (parent), Sam (priority 1 caregiver), and Jordan (priority 2 backup). The seed retains ten sample calls and two sample alerts, including processing/failed summary states. Backup registration is not mandatory.
+
+All seed numbers are fictional: Neul +12025550100, Alex +12025550101, Sam +12025550102, Jordan +12025550103. Replace these only in the hosted database before live testing; never commit real numbers. Seed replay deliberately does not overwrite existing rows, so an already-seeded project needs explicit targeted updates for the renamed profile and numbers.
+
+Frontend follow-up (C): add a "Parent's phone number" input using C05; submit null for an empty field. Until that UI exists, set the number in the hosted database. Do not dispatch notifications for the `fictional_alert_*` seed fixtures when delivery is later connected.
+
 ## Access model
 
 - Authenticated users can read families they belong to. Multi-family accounts can select a workspace.
 - Clients cannot insert/edit memberships, create families, change parent IDs/ownership, write calls, or fabricate alerts.
-- Only `preferred_name`, `routine`, `family_facts`, `calming_topics`, and `topics_to_avoid` are editable, as in C05. Database constraints enforce lengths and array sizes.
+- Only `phone_number`, `preferred_name`, `routine`, `family_facts`, `calming_topics`, and `topics_to_avoid` are editable, as in C05. Database constraints enforce lengths and array sizes.
 - C03 selects exactly the agreed fields from `call_details`. The view additionally exposes `family_id` solely for filtering a multi-family workspace; it uses the caller's RLS rules. Transcript, provider IDs, and billing fields are not granted to caregivers even through the base table.
 - Alert acknowledgment records the actual signed-in caregiver and database time. Another family cannot acknowledge it; a client cannot forge another caregiver or change an acknowledgment afterward.
 - New accounts get **no automatic access** to fictional or existing family data. The seed never binds all users to one shared family.
