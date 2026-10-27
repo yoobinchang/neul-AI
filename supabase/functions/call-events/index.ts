@@ -8,6 +8,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { verifyRetellSignature } from "../brain/retell-signature.ts";
 
+// Provided by the Supabase Edge Runtime.
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 const env = (name: string) => {
   const value = Deno.env.get(name);
   if (!value) throw new Error(`Missing secret ${name}`);
@@ -28,13 +31,18 @@ interface RetellCallEndedEvent {
   event: "call_ended";
   call: {
     call_id: string;
-    end_timestamp: number;
-    duration_ms: number;
+    end_timestamp?: number;
+    duration_ms?: number;
     transcript?: string;
-    cost_cents?: number;
+    // Retell reports cost in cents under call_cost (docs.retellai.com/api-references/get-call).
+    call_cost?: { combined_cost?: number };
     [key: string]: unknown;
   };
 }
+
+// Retell labels turns "Agent:" and "User:"; summaries and C02 expect "Neul:" and "Parent:".
+const relabelTranscript = (transcript: string) =>
+  transcript.replace(/^Agent:/gm, "Neul:").replace(/^User:/gm, "Parent:");
 
 async function findCallByProviderId(providerCallId: string) {
   const { data, error: err } = await supabase
@@ -112,16 +120,26 @@ Deno.serve(async (request) => {
     return error(400, "MISSING_CALL_ID", "call.call_id is required.");
   }
 
-  const call = await findCallByProviderId(providerCallId);
+  let call;
+  try {
+    call = await findCallByProviderId(providerCallId);
+  } catch (err) {
+    console.error("failed to look up call", { providerCallId, error: err });
+    return error(503, "TEMPORARY_FAILURE", "Try again.");
+  }
   if (!call) {
     console.warn("call not found for provider_call_id", providerCallId);
     return json(200, { received: true });
   }
 
-  const endedAt = new Date(callData.end_timestamp).toISOString();
-  const durationSeconds = Math.round(callData.duration_ms / 1000);
-  const transcript = callData.transcript?.trim() ?? null;
-  const costCents = typeof callData.cost_cents === "number" ? callData.cost_cents : null;
+  // A missing end time falls back to now rather than failing the webhook.
+  const endMs = typeof callData.end_timestamp === "number" ? callData.end_timestamp : Date.now();
+  const endedAt = new Date(endMs).toISOString();
+  const durationMs = typeof callData.duration_ms === "number" ? callData.duration_ms : 0;
+  const durationSeconds = Math.max(0, Math.round(durationMs / 1000));
+  const transcript = callData.transcript?.trim() ? relabelTranscript(callData.transcript.trim()) : null;
+  const combinedCost = callData.call_cost?.combined_cost;
+  const costCents = typeof combinedCost === "number" ? Math.max(0, Math.round(combinedCost)) : null;
 
   try {
     await endCall(call.call_id, endedAt, durationSeconds, transcript, costCents);
@@ -130,11 +148,14 @@ Deno.serve(async (request) => {
     return error(503, "TEMPORARY_FAILURE", "Try again.");
   }
 
-  // Fire-and-forget: trigger summarize but don't block Retell's webhook response.
+  // Answer Retell right away, but keep the worker alive until summarize finishes:
+  // without waitUntil the runtime may stop it once the response is sent.
   // The summarize function is idempotent (only acts when summary_status = 'processing').
-  triggerSummarize(call.call_id).catch((err) => {
-    console.error("triggerSummarize failed", { callId: call.call_id, error: err });
-  });
+  EdgeRuntime.waitUntil(
+    triggerSummarize(call.call_id).catch((err) => {
+      console.error("triggerSummarize failed", { callId: call.call_id, error: err });
+    }),
+  );
 
   return json(200, { received: true });
 });
