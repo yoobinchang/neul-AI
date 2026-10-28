@@ -1,0 +1,32 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # UTC 14:00 (EST 10:00), runs every day
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping Supabase Database
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          : "${SUPABASE_URL:?Missing SUPABASE_URL}"
+          : "${SUPABASE_ANON_KEY:?Missing SUPABASE_ANON_KEY}"
+
+          curl --fail-with-body --silent --show-error \
+            --connect-timeout 10 \
+            --max-time 30 \
+            --request POST \
+            "${SUPABASE_URL%/}/rest/v1/rpc/get_status" \
+            --header "apikey: ${SUPABASE_ANON_KEY}" \
+            --header "Content-Type: application/json" \
+            --data '{}'
