@@ -34,6 +34,13 @@ supabase secrets set RETELL_API_KEY=... ANTHROPIC_API_KEY=... BRAIN_SECRET=<rand
 supabase functions deploy brain --no-verify-jwt     # Retell can't send a Supabase token
 supabase functions deploy call-events --no-verify-jwt
 ```
+**Team test phones (optional):** while building, every teammate's phone can count as Alex:
+```
+supabase secrets set DEMO_PARENT_NUMBERS=+1XXXXXXXXXX,+1XXXXXXXXXX,+1XXXXXXXXXX
+supabase secrets unset DEMO_PARENT_NUMBERS     # back to the saved parent number only
+```
+Numbers are E.164, comma-separated; malformed entries are ignored. A secret change takes effect without redeploying. Never set it for real families: everyone on the list hears Alex's profile.
+
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically. `RETELL_API_KEY` must be the Retell key with the **webhook badge**, because only that key verifies signatures.
 
 Then B runs (this updates the live agent in place, with no duplicates):
