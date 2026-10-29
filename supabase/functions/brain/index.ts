@@ -7,7 +7,7 @@
 //   POST /brain/summarize       A's "call ended" trigger       (X-Brain-Secret)
 //
 // Secrets: RETELL_API_KEY (the key with the webhook badge), ANTHROPIC_API_KEY,
-// BRAIN_SECRET. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase.
+// BRAIN_SECRET, optional DEMO_PARENT_NUMBERS. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase.
 import { createClient } from "@supabase/supabase-js";
 import { ALERT_FAILED_RESPONSE, REJECTED_INBOUND_RESPONSE, handleAlertTool, handleInbound, handleSummarize } from "./handlers.ts";
 import { verifyRetellSignature } from "./retell-signature.ts";
@@ -24,6 +24,12 @@ const store = supabaseStore(createClient(env("SUPABASE_URL"), env("SUPABASE_SERV
 const anthropic = new Anthropic({ apiKey: env("ANTHROPIC_API_KEY") });
 const retellKey = env("RETELL_API_KEY");
 const brainSecret = env("BRAIN_SECRET");
+// Optional, comma-separated E.164 numbers that count as the parent while the
+// team builds and tests. Unset it for real families.
+const testParentNumbers = (Deno.env.get("DEMO_PARENT_NUMBERS") ?? "")
+  .split(",")
+  .map((number) => number.trim())
+  .filter((number) => /^\+[1-9][0-9]{7,14}$/.test(number));
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -52,7 +58,7 @@ Deno.serve(async (request) => {
   }
 
   try {
-    if (route === "/retell/inbound") return json(200, await handleInbound(body as never, store));
+    if (route === "/retell/inbound") return json(200, await handleInbound(body as never, store, testParentNumbers));
     if (route === "/retell/alert") return json(200, await handleAlertTool(body as never, store));
     const outcome = await handleSummarize(body as never, store, anthropic);
     return json(outcome.status, outcome.body);

@@ -151,6 +151,18 @@ test("inbound: an unknown Neul number, a hidden caller ID, or a non-inbound even
   assert.equal(calls.size, 0);
 });
 
+test("inbound: team test numbers count as the parent, even with no saved parent number", async () => {
+  const team = ["+12025550111", "+12025550112"];
+  const { store, calls } = memoryStore({ parentPhone: null });
+  const response = await handleInbound(inbound("+12025550112"), store, team);
+  assert.equal(response.call_inbound.dynamic_variables?.preferred_name, "Alex");
+  assert.equal(calls.size, 1);
+  assert.deepEqual(await handleInbound(inbound(STRANGER_NUMBER, NEUL_NUMBER, "retell-2"), store, team), REJECTED_INBOUND_RESPONSE);
+  // The saved parent number still works alongside the list.
+  const saved = memoryStore();
+  assert.equal((await handleInbound(inbound(ALEX_NUMBER), saved.store, team)).call_inbound.metadata?.context_status, "resolved");
+});
+
 test("inbound: Neul's own alert call, forwarded back after a decline, is rejected", async () => {
   const { store, calls } = memoryStore();
   assert.deepEqual(await handleInbound(inbound(NEUL_NUMBER), store), REJECTED_INBOUND_RESPONSE);

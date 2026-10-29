@@ -31,9 +31,14 @@ export interface RetellInboundResponse {
  */
 export const REJECTED_INBOUND_RESPONSE: RetellInboundResponse = { call_inbound: { reject: true } };
 
+/**
+ * testParentNumbers: team phones that also count as the parent while building
+ * (the DEMO_PARENT_NUMBERS secret). Empty in production.
+ */
 export async function handleInbound(
   event: RetellInboundEvent,
   store: BrainStore,
+  testParentNumbers: readonly string[] = [],
   now = new Date(),
 ): Promise<RetellInboundResponse> {
   const inbound = event.call_inbound;
@@ -46,7 +51,9 @@ export async function handleInbound(
 
   const [parent, primaryContact] = await Promise.all([store.getParent(familyId), store.getPrimaryContact(familyId)]);
   // A parent with no saved number matches nobody, so no caller ever gets their profile.
-  if (!parent?.phone_number || parent.phone_number !== inbound.from_number) return REJECTED_INBOUND_RESPONSE;
+  const callerIsParent =
+    !!parent && ((!!parent.phone_number && parent.phone_number === inbound.from_number) || testParentNumbers.includes(inbound.from_number));
+  if (!callerIsParent) return REJECTED_INBOUND_RESPONSE;
 
   const callId = inbound.call_id
     ? await store.startCall({

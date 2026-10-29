@@ -145,7 +145,7 @@ C updates the `parents` row directly. Editable fields:
 
 Row-level security allows edits only by caregivers of that family. Database constraints enforce: preferred_name nonempty, max 100 characters; routine max 2000; arrays max 20 items, 300 characters each. phone_number is nullable; non-null values must match `^\+[1-9][0-9]{7,14}$` (E.164). Omit it to preserve the existing value; send null to clear it, not an empty string. IDs and family ownership are not editable. Changes apply to the next C01 lookup. Initial profile creation is part of onboarding and needs its own contract.
 
-The brain inbound handler answers only calls from this number and rejects all others. A null number matches nobody, so set a verified demo number in the hosted database before live calls. C still needs to add a "Parent's phone number" form field. Phone-number matching is routing context, not strong identity verification.
+The brain inbound handler answers only calls from this number (plus the team test phones in the optional DEMO_PARENT_NUMBERS secret, see brain-handoff.md) and rejects all others. A null number matches nobody, so set a verified demo number in the hosted database before live calls. C still needs to add a "Parent's phone number" form field. Phone-number matching is routing context, not strong identity verification.
 
 ## C06: Alert record and delivery attempts (B → A → C)
 
