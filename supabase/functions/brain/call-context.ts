@@ -55,15 +55,15 @@ Topics to avoid:
 ${bulletList(parent.topics_to_avoid)}`;
 }
 
-// Used when the caller isn't the family's parent (or the lookup failed): no
-// names, no family facts, nothing that could reveal anything to a stranger.
+// The inbound webhook refuses every caller who isn't the parent, so these are
+// only used if Retell can't reach it (the agent's defaults): no names, no
+// family facts, no conversation. Say goodbye and end the call.
 export const UNKNOWN_CALLER_VARIABLES: AgentVariables = {
   preferred_name: "the caller",
   caregiver_name: "the person they called",
   known_facts:
-    "No family profile is linked to this caller, so you don't know who they are. Don't guess who they are, don't use any names, and don't share anything about any family. Be kind, offer to take a short message, and then say a warm goodbye.",
-  opening_line:
-    "Hi, this is Neul, an AI assistant. The person you called couldn't pick up, so I answered. Can I take a short message?",
+    "This caller could not be confirmed as the family's parent. Don't talk with them, don't use any names, and don't share anything about any family. After the opening line, end the call right away.",
+  opening_line: "Sorry, this call can't be answered right now. Goodbye.",
 };
 
 export function openingLine(preferredName: string, caregiverName: string): string {

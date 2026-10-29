@@ -9,7 +9,7 @@
 // Secrets: RETELL_API_KEY (the key with the webhook badge), ANTHROPIC_API_KEY,
 // BRAIN_SECRET. SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase.
 import { createClient } from "@supabase/supabase-js";
-import { ALERT_FAILED_RESPONSE, GENERIC_INBOUND_RESPONSE, handleAlertTool, handleInbound, handleSummarize } from "./handlers.ts";
+import { ALERT_FAILED_RESPONSE, REJECTED_INBOUND_RESPONSE, handleAlertTool, handleInbound, handleSummarize } from "./handlers.ts";
 import { verifyRetellSignature } from "./retell-signature.ts";
 import { supabaseStore } from "./store.ts";
 import { Anthropic } from "./summarize.ts";
@@ -58,8 +58,8 @@ Deno.serve(async (request) => {
     return json(outcome.status, outcome.body);
   } catch (caught) {
     console.error(route, caught);
-    // Never drop or stall a call: answer with no family details instead.
-    if (route === "/retell/inbound") return json(200, GENERIC_INBOUND_RESPONSE);
+    // Never stall a call: if we can't confirm the parent, refuse it.
+    if (route === "/retell/inbound") return json(200, REJECTED_INBOUND_RESPONSE);
     if (route === "/retell/alert") return json(200, ALERT_FAILED_RESPONSE);
     return error(503, "TEMPORARY_FAILURE", "Try again.");
   }

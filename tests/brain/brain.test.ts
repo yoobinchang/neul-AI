@@ -3,15 +3,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { UNKNOWN_CALLER_VARIABLES } from "../../supabase/functions/brain/call-context.ts";
-import { handleAlertTool, handleInbound, handleSummarize } from "../../supabase/functions/brain/handlers.ts";
+import { handleAlertTool, handleInbound, handleSummarize, REJECTED_INBOUND_RESPONSE } from "../../supabase/functions/brain/handlers.ts";
 import { signRetellBody, verifyRetellSignature } from "../../supabase/functions/brain/retell-signature.ts";
 import type { AlertInput, BrainStore, CallRow } from "../../supabase/functions/brain/store.ts";
 import type { Anthropic } from "../../supabase/functions/brain/summarize.ts";
 
 const FAMILY = "family-1";
 const NEUL_NUMBER = "+12025550100";
+const ALEX_NUMBER = "+12025550101";
+const STRANGER_NUMBER = "+12025550199";
 
-function memoryStore(options: { parentPhone?: string | null } = {}) {
+function memoryStore({ parentPhone = ALEX_NUMBER }: { parentPhone?: string | null } = {}) {
   const calls = new Map<string, CallRow & { provider_call_id: string; summary: string | null }>();
   const alerts: (AlertInput & { alert_id: string })[] = [];
   const store: BrainStore = {
@@ -27,7 +29,7 @@ function memoryStore(options: { parentPhone?: string | null } = {}) {
         family_facts: ["Sam is the primary caregiver."],
         calming_topics: ["Gardening"],
         topics_to_avoid: [],
-        phone_number: options.parentPhone ?? null,
+        phone_number: parentPhone,
       };
     },
     async getPrimaryContact() {
@@ -110,9 +112,9 @@ test("Retell signature: accepts a fresh signature, rejects a changed body, wrong
   assert.equal(await verifyRetellSignature('{"a":1}', "key", null, now), false);
 });
 
-test("inbound: the family's number gets Alex's profile and a call row", async () => {
+test("inbound: Alex calling the family's number gets Alex's profile and a call row", async () => {
   const { store, calls } = memoryStore();
-  const response = await handleInbound(inbound("+12025550199"), store);
+  const response = await handleInbound(inbound(ALEX_NUMBER), store);
   const variables = response.call_inbound.dynamic_variables!;
   assert.equal(variables.preferred_name, "Alex");
   assert.equal(variables.caregiver_name, "Sam");
@@ -121,36 +123,48 @@ test("inbound: the family's number gets Alex's profile and a call row", async ()
   assert.equal(response.call_inbound.metadata?.context_status, "resolved");
   assert.equal(calls.size, 1);
   // Retell retries the webhook; the same call must not create a second row.
-  await handleInbound(inbound("+12025550199"), store);
+  await handleInbound(inbound(ALEX_NUMBER), store);
   assert.equal(calls.size, 1);
 });
 
-test("inbound: an unknown number gets no family details", async () => {
+test("inbound: anyone other than Alex is rejected before the agent starts", async () => {
   const { store, calls } = memoryStore();
-  const response = await handleInbound(inbound("+12025550199", "+19995550000"), store);
-  assert.deepEqual(response.call_inbound.dynamic_variables, UNKNOWN_CALLER_VARIABLES);
+  assert.deepEqual(await handleInbound(inbound(STRANGER_NUMBER), store), REJECTED_INBOUND_RESPONSE);
+  assert.equal(calls.size, 0);
+});
+
+test("inbound: a parent with no saved number matches nobody", async () => {
+  const { store, calls } = memoryStore({ parentPhone: null });
+  assert.deepEqual(await handleInbound(inbound(ALEX_NUMBER), store), REJECTED_INBOUND_RESPONSE);
+  assert.deepEqual(await handleInbound(inbound(STRANGER_NUMBER), store), REJECTED_INBOUND_RESPONSE);
+  assert.equal(calls.size, 0);
+});
+
+test("inbound: an unknown Neul number, a hidden caller ID, or a non-inbound event is rejected", async () => {
+  const { store, calls } = memoryStore();
+  assert.deepEqual(await handleInbound(inbound(ALEX_NUMBER, "+19995550000"), store), REJECTED_INBOUND_RESPONSE);
+  assert.deepEqual(
+    await handleInbound({ event: "call_inbound", call_inbound: { call_id: "retell-1", to_number: NEUL_NUMBER } }, store),
+    REJECTED_INBOUND_RESPONSE,
+  );
+  assert.deepEqual(await handleInbound({ event: "call_started", call_inbound: inbound(ALEX_NUMBER).call_inbound }, store), REJECTED_INBOUND_RESPONSE);
   assert.equal(calls.size, 0);
 });
 
 test("inbound: Neul's own alert call, forwarded back after a decline, is rejected", async () => {
   const { store, calls } = memoryStore();
-  const response = await handleInbound(inbound(NEUL_NUMBER), store);
-  assert.deepEqual(response, { call_inbound: { reject: true } });
+  assert.deepEqual(await handleInbound(inbound(NEUL_NUMBER), store), REJECTED_INBOUND_RESPONSE);
   assert.equal(calls.size, 0);
 });
 
-test("inbound: once the parent has a phone number, other callers are unknown_caller", async () => {
-  const { store } = memoryStore({ parentPhone: "+12025550101" });
-  const stranger = await handleInbound(inbound("+12025550199"), store);
-  assert.equal(stranger.call_inbound.metadata?.context_status, "unknown_caller");
-  assert.doesNotMatch(JSON.stringify(stranger.call_inbound.dynamic_variables), /Alex|Sam|Gardening/);
-  const parent = await handleInbound(inbound("+12025550101", NEUL_NUMBER, "retell-2"), store);
-  assert.equal(parent.call_inbound.metadata?.context_status, "resolved");
+test("fallback variables (webhook unreachable) carry no family details and end the call", () => {
+  assert.doesNotMatch(JSON.stringify(UNKNOWN_CALLER_VARIABLES), /Alex|Sam|Gardening|message/);
+  assert.match(UNKNOWN_CALLER_VARIABLES.known_facts, /end the call/);
 });
 
 test("alert: records once per type, merges new landmarks, raises urgency", async () => {
   const { store, calls, alerts } = memoryStore();
-  await handleInbound(inbound("+12025550199"), store);
+  await handleInbound(inbound(ALEX_NUMBER), store);
   const call = { call_id: "retell-1" };
 
   const first = await handleAlertTool({ call, args: { type: "lost", reason: "Doesn't know where she is.", landmarks: ["gas station"] } }, store);
@@ -169,7 +183,7 @@ test("alert: records once per type, merges new landmarks, raises urgency", async
 test("alert: bad input or an unknown call fails without writing", async () => {
   const { store, alerts } = memoryStore();
   assert.equal((await handleAlertTool({ call: { call_id: "nope" }, args: { type: "lost", reason: "x" } }, store)).ok, false);
-  await handleInbound(inbound("+12025550199"), store);
+  await handleInbound(inbound(ALEX_NUMBER), store);
   assert.equal((await handleAlertTool({ call: { call_id: "retell-1" }, args: { type: "fire", reason: "x" } }, store)).ok, false);
   assert.equal((await handleAlertTool({ call: { call_id: "retell-1" }, args: { type: "urgent", reason: " " } }, store)).ok, false);
   assert.equal(alerts.length, 0);
@@ -181,7 +195,7 @@ test("summarize: writes once for an ended call, skips the rest", async () => {
   assert.equal((await handleSummarize({}, store, fakeClient(model))).status, 400);
   assert.equal((await handleSummarize({ call_id: "missing" }, store, fakeClient(model))).status, 404);
 
-  await handleInbound(inbound("+12025550199"), store);
+  await handleInbound(inbound(ALEX_NUMBER), store);
   const early = await handleSummarize({ call_id: "call-1" }, store, fakeClient(model));
   assert.deepEqual(early.body, { call_id: "call-1", skipped: "call not ended" });
 
@@ -199,7 +213,7 @@ test("summarize: writes once for an ended call, skips the rest", async () => {
 test("summarize: an empty transcript is marked failed without a model call", async () => {
   const { store, calls } = memoryStore();
   const model = { count: 0 };
-  await handleInbound(inbound("+12025550199"), store);
+  await handleInbound(inbound(ALEX_NUMBER), store);
   Object.assign(calls.get("call-1")!, { status: "ended", transcript: null });
   const outcome = await handleSummarize({ call_id: "call-1" }, store, fakeClient(model));
   assert.deepEqual(outcome.body, { call_id: "call-1", summary_status: "failed", written: true });

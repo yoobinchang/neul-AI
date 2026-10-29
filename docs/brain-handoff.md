@@ -51,7 +51,7 @@ RETELL_LLM_ID=llm_508848302fd4217498958bb5f8c8 RETELL_PHONE_NUMBER=+1... npm run
    alter table public.parents add column phone_number text
      check (phone_number is null or phone_number ~ '^\+[1-9][0-9]{7,14}$');
    ```
-   Once it's filled in, only calls from Alex's phone get Alex's profile. Anyone else whose call to Sam forwards to Neul gets the generic "take a message" agent. **Until then, every caller to the Neul number is treated as Alex.** That's fine for the demo, but it has to be fixed before real families. The brain function picks the column up automatically.
+   Neul only talks with the parent: only calls from Alex's saved number are answered. Anyone else whose call to Sam forwards to Neul is refused before the agent starts (they hear the call end, and can't leave Sam a voicemail while forwarding is on). **If the number is blank, every call is refused, including Alex's**, so set the real demo phone in the hosted database before live calls. The carrier must also keep Alex's caller ID when it forwards; check this with one real test call.
 4. **End of call:** handle Retell's `call_ended`/`call_analyzed` webhook (agent `webhook_url`) and update the call row found by `provider_call_id` = Retell `call_id`: `status='ended'`, `ended_at`, `duration_seconds`, `transcript`, `cost_cents`. Leave `summary_status='processing'`. Then `POST /brain/summarize` with `{"call_id": "<uuid>"}` and header `X-Brain-Secret`. Calling it twice is safe.
 5. **Alert delivery:** react to new `alerts` rows (type `urgent`/`lost`, `reason`, `landmarks`) per C06. B writes **one alert per call per type** (`event_id = retell:<retell call id>:<type>`). If Alex mentions more landmarks, B adds them to the same row, so watch for updates as well as inserts if you want to re-send landmarks.
 6. **Phone number:** connect the Twilio number to Retell (import the number or use a SIP trunk) and assign the agent `agent_256167d9e8674f7b708a2a9970`. `update:retell` sets the inbound webhook.
@@ -60,8 +60,8 @@ RETELL_LLM_ID=llm_508848302fd4217498958bb5f8c8 RETELL_PHONE_NUMBER=+1... npm run
 
 - **Inbound creates the call row** (`status in_progress`, `urgency routine`, `summary_status processing`), keyed by `provider_call_id`. C01 says A creates it at call start. The inbound webhook is the earliest moment, and alerts need the row to exist. If you'd rather own it, move `startCall` into your code.
 - **Alerts raise `calls.urgency`** (routine → urgent → lost, never down). C02's `urgency` then already holds the in-call result when you finalize, so don't overwrite it with `routine`.
-- Unknown callers: `context_status = unknown_caller`, `parent_id = null`, and the agent uses no names or facts.
-- **Calls from the Neul number itself are rejected.** If Sam declines Neul's alert call, Sam's phone forwards it back to the Neul number, and answering it would hide the alert. So place alert calls *from* the family's Neul number, and treat a declined or rejected alert call as "not acknowledged" (try the next contact).
+- **Every caller except the parent is rejected** (`call_inbound.reject`), so no call row is created and no `call_ended` webhook arrives for them. If Retell can't reach the webhook, the agent's default variables say a short goodbye and end the call.
+- **This also rejects calls from the Neul number itself.** If Sam declines Neul's alert call, Sam's phone forwards it back to the Neul number, and answering it would hide the alert. So place alert calls *from* the family's Neul number, and treat a declined or rejected alert call as "not acknowledged" (try the next contact).
 
 ## For C (app)
 - An in-progress call shows `summary_status = processing` from the moment it starts. The "summary coming" state covers it.
