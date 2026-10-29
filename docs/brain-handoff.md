@@ -25,13 +25,14 @@ Alex calls Sam → Sam doesn't pick up → carrier forwards → Neul number (Twi
 | `POST /brain/retell/alert` | The agent's `alert_caregiver` tool | `X-Retell-Signature` | `{call, args: {type, reason, landmarks}}` → `{result, ok}` (read by the agent's model) |
 | `POST /brain/summarize` | A, once a call is finalized | `X-Brain-Secret` header | `{call_id}` (or a database-webhook `{record: {call_id}}`) → `{call_id, summary_status, written}` or `{call_id, skipped}` |
 
-Errors follow the envelope in contracts.md. The two Retell routes never fail a live call. If something breaks, inbound answers with generic "unknown caller" variables (no family details), and alert tells the agent the alert failed so it falls back to suggesting 911 for serious signs.
+Errors follow the envelope in contracts.md. The two Retell routes never stall a live call. If something breaks, inbound rejects the call (Neul never talks with a caller it can't confirm as the parent), and alert tells the agent the alert failed so it falls back to suggesting 911 for serious signs.
 
 ## Deploy (once the hosted project exists)
 
 ```
 supabase secrets set RETELL_API_KEY=... ANTHROPIC_API_KEY=... BRAIN_SECRET=<random string>
 supabase functions deploy brain --no-verify-jwt     # Retell can't send a Supabase token
+supabase functions deploy call-events --no-verify-jwt
 ```
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically. `RETELL_API_KEY` must be the Retell key with the **webhook badge**, because only that key verifies signatures.
 
@@ -39,8 +40,10 @@ Then B runs (this updates the live agent in place, with no duplicates):
 ```
 cd voice
 NEUL_BRAIN_URL=https://<project>.supabase.co/functions/v1/brain \
-RETELL_LLM_ID=llm_508848302fd4217498958bb5f8c8 RETELL_PHONE_NUMBER=+1... npm run update:retell
+RETELL_LLM_ID=llm_508848302fd4217498958bb5f8c8 RETELL_AGENT_ID=agent_256167d9e8674f7b708a2a9970 \
+RETELL_PHONE_NUMBER=+1... npm run update:retell
 ```
+It sets all three Retell URLs: the number's inbound webhook (`brain/retell/inbound`), the `alert_caregiver` tool (`brain/retell/alert`) and the agent's `call_ended` webhook (`call-events`). It then publishes the agent and pins the number to that published version, so editing the agent in the dashboard doesn't change live calls until you re-run it. `RETELL_API_KEY` can also live in the repo-root `.env`.
 
 ## What A needs to do
 
@@ -54,7 +57,7 @@ RETELL_LLM_ID=llm_508848302fd4217498958bb5f8c8 RETELL_PHONE_NUMBER=+1... npm run
    Neul only talks with the parent: only calls from Alex's saved number are answered. Anyone else whose call to Sam forwards to Neul is refused before the agent starts (they hear the call end, and can't leave Sam a voicemail while forwarding is on). **If the number is blank, every call is refused, including Alex's**, so set the real demo phone in the hosted database before live calls. The carrier must also keep Alex's caller ID when it forwards; check this with one real test call.
 4. **End of call:** handle Retell's `call_ended`/`call_analyzed` webhook (agent `webhook_url`) and update the call row found by `provider_call_id` = Retell `call_id`: `status='ended'`, `ended_at`, `duration_seconds`, `transcript`, `cost_cents`. Leave `summary_status='processing'`. Then `POST /brain/summarize` with `{"call_id": "<uuid>"}` and header `X-Brain-Secret`. Calling it twice is safe.
 5. **Alert delivery:** react to new `alerts` rows (type `urgent`/`lost`, `reason`, `landmarks`) per C06. B writes **one alert per call per type** (`event_id = retell:<retell call id>:<type>`). If Alex mentions more landmarks, B adds them to the same row, so watch for updates as well as inserts if you want to re-send landmarks.
-6. **Phone number:** connect the Twilio number to Retell (import the number or use a SIP trunk) and assign the agent `agent_256167d9e8674f7b708a2a9970`. `update:retell` sets the inbound webhook.
+6. **Phone number:** connect the Twilio number to Retell (import the number or use a SIP trunk) and assign the agent `agent_256167d9e8674f7b708a2a9970`. `update:retell` sets the inbound webhook and pins the published agent version.
 
 ## Choices B made that touch A's side (change them if you disagree)
 
