@@ -5,7 +5,7 @@
 //   inbound   Retell asks who is calling → C01 lookup, call row, agent variables
 //   alert     the agent's alert_caregiver tool → C06 alert record + call urgency
 //   summarize A's "call ended" trigger → C02 summary written back to the call
-import { agentVariables, UNKNOWN_CALLER_VARIABLES, type AgentVariables, type CallContext } from "./call-context.ts";
+import { agentVariables, type AgentVariables, type CallContext } from "./call-context.ts";
 import type { BrainStore, Urgency } from "./store.ts";
 import { summarizeCall, type Anthropic, type SummaryResult } from "./summarize.ts";
 
@@ -24,10 +24,12 @@ export interface RetellInboundResponse {
   };
 }
 
-/** Sent whenever the caller can't be matched to a family, including on errors. */
-export const GENERIC_INBOUND_RESPONSE: RetellInboundResponse = {
-  call_inbound: { dynamic_variables: UNKNOWN_CALLER_VARIABLES },
-};
+/**
+ * Neul only talks with the family's parent. Every other call (strangers whose
+ * call to the caregiver was forwarded, unknown destinations, errors) is
+ * refused before any agent starts, and Retell creates no call for it.
+ */
+export const REJECTED_INBOUND_RESPONSE: RetellInboundResponse = { call_inbound: { reject: true } };
 
 export async function handleInbound(
   event: RetellInboundEvent,
@@ -35,40 +37,37 @@ export async function handleInbound(
   now = new Date(),
 ): Promise<RetellInboundResponse> {
   const inbound = event.call_inbound;
-  if (event.event !== "call_inbound" || !inbound?.to_number) return GENERIC_INBOUND_RESPONSE;
-  // Neul's own alert call to the caregiver, forwarded back here because they
-  // declined it. Answering it would hide the alert, so end it.
-  if (inbound.from_number === inbound.to_number) return { call_inbound: { reject: true } };
+  if (event.event !== "call_inbound" || !inbound?.to_number || !inbound.from_number) return REJECTED_INBOUND_RESPONSE;
+  // Also covers Neul's own alert call to the caregiver, forwarded back here
+  // because they declined it: the Neul number is never the parent's number.
 
   const familyId = await store.findFamilyIdByNumber(inbound.to_number);
-  if (!familyId) return GENERIC_INBOUND_RESPONSE;
+  if (!familyId) return REJECTED_INBOUND_RESPONSE;
 
   const [parent, primaryContact] = await Promise.all([store.getParent(familyId), store.getPrimaryContact(familyId)]);
-  // Until parents has a phone number, every caller to the family's Neul number
-  // counts as the parent. Fine for the one-family demo; see docs/brain-handoff.md.
-  const callerIsParent = !!parent && (!parent.phone_number || parent.phone_number === inbound.from_number);
+  // A parent with no saved number matches nobody, so no caller ever gets their profile.
+  if (!parent?.phone_number || parent.phone_number !== inbound.from_number) return REJECTED_INBOUND_RESPONSE;
 
   const callId = inbound.call_id
     ? await store.startCall({
         family_id: familyId,
-        parent_id: callerIsParent ? parent.parent_id : null,
+        parent_id: parent.parent_id,
         provider_call_id: inbound.call_id,
         started_at: now.toISOString(),
       })
     : null;
 
-  const contextStatus = callerIsParent ? "resolved" : "unknown_caller";
   const context: CallContext = {
     call_id: callId ?? "",
     family_id: familyId,
-    context_status: contextStatus,
-    parent: callerIsParent ? parent : null,
+    context_status: "resolved",
+    parent,
     primary_contact: primaryContact,
   };
   return {
     call_inbound: {
       dynamic_variables: agentVariables(context),
-      metadata: { family_id: familyId, call_id: callId, context_status: contextStatus },
+      metadata: { family_id: familyId, call_id: callId, context_status: "resolved" },
     },
   };
 }
