@@ -15,7 +15,7 @@ A parent calls their child's existing number. When a tested conditional-forwardi
 - Location is shared only when the parent taps "I'm lost" in Parent Mode, for at most 30 minutes. Neul never tracks location in the background.
 - Development and demo data must be fictional.
 
-## One app, two modes
+## Modes
 
 | Mode | Device | Purpose |
 | --- | --- | --- |
@@ -24,20 +24,9 @@ A parent calls their child's existing number. When a tested conditional-forwardi
 
 Neul works without Parent Mode (phone line + voice clues + the family's own location app).
 
-## Roles and repository ownership
-
-| Owner | Role | Folders |
-| --- | --- | --- |
-| A | Backend & Platform Engineer: database, auth, access rules, call handling, alert delivery, push sending, pairing, contracts | `supabase/migrations/`, `supabase/functions/` (except `brain/`), `docs/contracts.md` |
-| B | AI Engineer: voice agent, AI instructions, urgency/lost detection, Lost Mode conversation, summaries, evaluation | `voice/`, `supabase/functions/brain/`, `tests/` |
-| C | Frontend Engineer (Product & Design): both app modes, PWA, push registration, Lost Mode map, usability tests | `app/` |
-| Everyone | Safety scenarios, test calls, survey outreach, demo rehearsal | `docs/` (shared) |
-
-Ownership means review responsibility, not a prohibition on helping. See [contributing](docs/contributing.md).
-
 ## Stack
 
-Twilio (phone) · Vapi or Retell (voice AI, chosen in Week 1) · AI model chosen by comparison · Supabase (database, auth, functions, live updates) · Next.js PWA on Vercel · Leaflet + OpenStreetMap · TypeScript everywhere.
+Twilio (phone) · Retell (voice AI) · AI model chosen by comparison · Supabase (database, auth, functions, live updates) · Next.js PWA on Vercel · Leaflet + OpenStreetMap · TypeScript
 
 ## Start here
 
@@ -47,9 +36,6 @@ Twilio (phone) · Vapi or Retell (voice AI, chosen in Week 1) · AI model chosen
 4. Follow [the contribution workflow](docs/contributing.md) and [safety rules](docs/safety.md).
 5. Use [fictional examples](docs/examples.json) to build independently.
 
-## First integration target (M0)
-
-Save one fictional completed call to the database and display it in C's app. A tests the phone/voice path independently, then replaces the fictional call with a real test-call event.
 
 ## Local setup
 
