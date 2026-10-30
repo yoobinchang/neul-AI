@@ -1,0 +1,45 @@
+NEUL v0.5 • Lighthouse Intro + Focused Home
+==========================================
+
+What's new
+- First-visit 3D lighthouse intro with 360° rotating beacon (Three.js)
+- Auto-continue after ~8 seconds, Skip intro / Enter Neul controls
+- Intro is shown once per browser tab (sessionStorage). Use Replay intro in header.
+- Home emphasizes ONE priority feature: latest AI call summary
+- Calls / Alerts / Location / Profile moved to Categories drawer
+- Existing caregiver / parent / location demo features remain
+- Original Neul logo and navy/gold/sky branding retained
+
+Mac installation
+----------------
+1. Download neul-lighthouse-v05.zip to ~/Downloads
+2. Open VS Code terminal and copy/paste:
+
+cd ~/Desktop/neul-AI
+
+git status
+
+BACKUP="$HOME/Desktop/neul-backup-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$BACKUP"
+cp -R app/src app/public "$BACKUP"/
+
+cd app
+unzip -o ~/Downloads/neul-lighthouse-v05.zip
+npm install three
+npm install --save-dev @types/three
+npm run build
+npm run dev
+
+3. Open http://localhost:3000
+4. For first-visit intro, open a new private browser window, or use Replay intro from Home header.
+5. On mobile check the Categories button and Parent Mode.
+
+Notes
+-----
+- This is a mock-data frontend. No real SMS, emergency calls, alerts or cross-device GPS sharing.
+- The lighthouse is procedural 3D (built from meshes), not an imported GLB/GLTF asset.
+- WebGL unavailable: show original lighthouse logo fallback.
+- 3D dependencies: 'three' and '@types/three'; avoid committing node_modules.
+- Source JavaScript/TypeScript syntax checked. Full Next.js build on your machine still required.
+- Overlay ZIP replaces source files and brand assets only, NOT package.json / .env / docs / Supabase / voice.
+- Avoid exposing real family data in a public demo.
