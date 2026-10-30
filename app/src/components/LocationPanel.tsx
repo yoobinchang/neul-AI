@@ -36,7 +36,7 @@ export default function LocationPanel({ lostSession, onParentMode }: Props) {
   const mapUrls = hasCoordinates ? buildMapUrls(lostSession!.latitude!, lostSession!.longitude!, lostSession?.accuracy) : null;
 
   return (
-    <div className="mx-auto max-w-[1120px] px-0 py-3 text-[#173252]" data-neul-patch="neul-clarity-v07">
+    <div className="neul-demo-location-view mx-auto max-w-[1120px] px-0 py-3 text-[#173252]" data-neul-patch="neul-clarity-v07">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-[12px] font-medium text-[#6D8298]">Location support</p>
@@ -48,8 +48,18 @@ export default function LocationPanel({ lostSession, onParentMode }: Props) {
         </button>
       </div>
 
+      {lostSession && (
+        <div className="neul-demo-incident-banner neul-demo-location-incident mt-6" role="status">
+          <span className="neul-demo-beacon-dot" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <strong className="block text-[15px]">Lost Mode preview active</strong>
+            <span className="block text-[12px] leading-6">Location was requested in Parent Mode on this device. No remote emergency notification was sent.</span>
+          </div>
+          <ArrowRight size={18} className="shrink-0" aria-hidden="true" />
+        </div>
+      )}
       <div className="mt-7 grid gap-5 lg:grid-cols-[minmax(0,1.55fr)_360px]">
-        <section className="overflow-hidden rounded-[28px] border border-[#E3EAF2] bg-white shadow-[0_20px_50px_-42px_rgba(19,45,83,.34)]">
+        <section className={`neul-demo-map-stage overflow-hidden rounded-[28px] border border-[#E3EAF2] bg-white shadow-[0_20px_50px_-42px_rgba(19,45,83,.34)] ${lostSession ? "neul-demo-map-stage-lost" : ""}`}>
           {showMap && mapUrls ? (
             <div className="h-[460px] bg-[#E7EEF7]">
               <iframe title="OpenStreetMap preview" src={mapUrls.embedUrl} className="h-full w-full border-0" loading="lazy" referrerPolicy="no-referrer" />
@@ -57,7 +67,7 @@ export default function LocationPanel({ lostSession, onParentMode }: Props) {
           ) : (
             <div className="relative flex min-h-[460px] flex-col items-center justify-center px-8 text-center">
               <div aria-hidden="true" className="absolute inset-0 opacity-60" style={{ backgroundImage: "radial-gradient(#B8C8D8 1px,transparent 1px)", backgroundSize: "24px 24px" }} />
-              <div className="relative flex h-24 w-24 items-center justify-center rounded-[28px] bg-[#173252] text-white shadow-[0_24px_50px_-35px_rgba(23,50,82,.45)]"><MapPin size={46} /></div>
+              <div className={`neul-demo-map-main-marker relative flex h-24 w-24 items-center justify-center rounded-[28px] text-white shadow-[0_24px_50px_-35px_rgba(23,50,82,.45)] ${lostSession ? "bg-[#C83B49]" : "bg-[#173252]"}`}><MapPin size={46} /></div>
               <h2 className="relative mt-7 text-[clamp(1.9rem,4vw,2.8rem)] font-semibold tracking-[-0.055em] text-[#173252]">{hasCoordinates ? "Location ready" : "Waiting for location"}</h2>
               <p className="relative mt-3 max-w-[430px] text-[14px] leading-7 text-[#617B96]">
                 {hasCoordinates
@@ -77,7 +87,7 @@ export default function LocationPanel({ lostSession, onParentMode }: Props) {
           )}
         </section>
 
-        <section className="rounded-[28px] border border-[#E3EAF2] bg-white p-6 shadow-[0_20px_50px_-42px_rgba(19,45,83,.34)] sm:p-7">
+        <section className={`neul-demo-location-side rounded-[28px] border border-[#E3EAF2] bg-white p-6 shadow-[0_20px_50px_-42px_rgba(19,45,83,.34)] sm:p-7 ${lostSession ? "neul-demo-location-side-lost" : ""}`}>
           <div className="flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-2 rounded-full bg-[#EEF3F8] px-3.5 py-2 text-[12px] font-semibold text-[#23466A]">
               <span className={`h-2 w-2 rounded-full ${hasCoordinates ? "bg-[#4A8874]" : "bg-[#99A9B8]"}`} />

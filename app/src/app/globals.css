@@ -280,3 +280,76 @@ button, input, textarea { letter-spacing:inherit; }
     display: none !important;
   }
 }
+
+/* neul-competition-motion-v14 */
+/* Presentation polish only. No backend, data, or alert behavior is changed. */
+@keyframes neul-demo-enter {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes neul-demo-ring {
+  0% { opacity: .42; transform: translate(-50%, -50%) scale(.62); }
+  75% { opacity: .06; transform: translate(-50%, -50%) scale(1.14); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.22); }
+}
+@keyframes neul-demo-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(200, 59, 73, .24); }
+  50% { box-shadow: 0 0 0 7px rgba(200, 59, 73, 0); }
+}
+.neul-demo-appear { animation: neul-demo-enter .65s cubic-bezier(.21,.67,.29,1) both; }
+.neul-demo-summary-card { position: relative; animation-delay: .07s; transition: transform .26s ease, box-shadow .26s ease; }
+.neul-demo-summary-card::before { content:""; position:absolute; inset:0 0 auto; height:3px; background:linear-gradient(90deg,#1f3a5f,#6fa8c7,#f5a623); }
+.neul-demo-location-card { position:relative; animation-delay:.17s; transition:transform .26s ease,box-shadow .26s ease,border-color .25s; }
+.neul-demo-location-card[data-lost="true"] { border-color:#EDB3BB; box-shadow:0 20px 58px -36px rgba(176,53,67,.26); }
+.neul-demo-location-card[data-lost="true"]::before { content:""; position:absolute; z-index:1; inset:0 0 auto; height:3px; background:linear-gradient(90deg,#BF3544,#F3919D); }
+.neul-demo-map-marker-lost, .neul-demo-map-stage-lost .neul-demo-map-main-marker { background:#C83B49; color:white; border-color:#D86D7A; box-shadow:0 0 0 12px rgba(200,59,73,.09),0 0 0 24px rgba(200,59,73,.045); }
+.neul-demo-map-main-marker { transition: background .25s ease, box-shadow .25s ease; }
+.neul-demo-location-side-lost { border-color:#EFCDD2; }
+.neul-demo-map-stage-lost { border-color:#EFCDD2; }
+.neul-demo-parent { background:#F7FAFD; }
+.neul-demo-parent[data-lost="true"] { background:radial-gradient(ellipse at 90% 16%,rgba(250,226,228,.6),transparent 49%),#F7FAFD; }
+.neul-demo-sos { isolation:isolate; position:relative; cursor:pointer; overflow:hidden; background:radial-gradient(ellipse at 52% 20%,#355E84 0%,#24466B 45%,#173252 100%); border:1px solid #7595B5; box-shadow:0 28px 68px -27px rgba(23,50,82,.43),inset 0 2px 0 rgba(255,255,255,.16); transition:transform .25s ease,box-shadow .25s ease; }
+.neul-demo-sos::before { content:""; position:absolute; inset:0; pointer-events:none; opacity:.38; background:radial-gradient(circle at 50% 36%,rgba(255,255,255,.13) 0 10%,transparent 36%),linear-gradient(142deg,rgba(255,255,255,.08),transparent 52%); }
+.neul-demo-sos::after { content:""; position:absolute; z-index:0; bottom:-128px; left:-50px; width:290px; height:290px; border:1px solid rgba(255,255,255,.18); border-radius:50%; pointer-events:none; }
+.neul-demo-sos-halo { display:none; }
+.neul-demo-sos-halo-two { animation-delay:1.9s; }
+.neul-demo-sos-center, .neul-demo-sos-title, .neul-demo-sos-description { position:relative; z-index:1; }
+.neul-demo-sos-center { box-shadow:0 16px 44px -24px rgba(110,20,37,.45); }
+.neul-demo-sos-title { text-shadow:0 2px 20px rgba(107,21,34,.14); }
+.neul-demo-sos:focus-visible { outline:4px solid #F5A623; outline-offset:5px; }
+.neul-demo-active-panel { position:relative; overflow:hidden; }
+.neul-demo-active-panel::before { content:""; position:absolute; inset:0 0 auto; height:4px; background:linear-gradient(90deg,#B52E41,#EF7F89); }
+.neul-demo-incident-banner, .neul-demo-lost-banner { border:1px solid #EFBCC3; border-radius:18px; background:linear-gradient(112deg,#FFF0F2,#FFF8F8); color:#982F3E; padding:15px 18px; box-shadow:0 14px 36px -32px rgba(158,35,51,.4); }
+.neul-demo-incident-banner { display:flex; align-items:center; gap:14px; }
+.neul-demo-incident-banner strong { display:block; font-size:14px; font-weight:700; }
+.neul-demo-incident-banner small { display:block; margin-top:2px; color:#A75E69; font-size:12px; line-height:1.7; }
+.neul-demo-incident-icon::after { content:""; position:absolute; inset:-8px; border:1px solid rgba(200,59,73,.2); border-radius:23px; }
+.neul-demo-beacon-dot { display:inline-block; position:relative; flex-shrink:0; width:10px; height:10px; border-radius:50%; background:#C83B49; animation:neul-demo-pulse 2.2s ease-in-out infinite; }
+.neul-demo-lost-banner { transition:background .2s; }
+.neul-demo-lost-banner:hover { background:#FFE7EB; }
+.neul-demo-location-incident { animation:neul-demo-enter .5s ease-out both; }
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+  .neul-demo-summary-card:hover, .neul-demo-location-card:hover { transform:translateY(-4px); box-shadow:0 28px 66px -39px rgba(22,49,78,.28); }
+  .neul-demo-sos:hover { transform:translateY(-4px); box-shadow:0 36px 82px -27px rgba(23,50,82,.53),inset 0 2px 0 rgba(255,255,255,.2); }
+  .neul-demo-sos:active { transform:scale(.994); }
+}
+@media (max-width:450px) {
+  .neul-demo-sos-halo { width:210px; height:210px; }
+  .neul-demo-incident-banner { gap:10px; padding:14px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .neul-demo-appear, .neul-demo-location-incident { animation:none !important; }
+  .neul-demo-sos-halo, .neul-demo-beacon-dot { animation:none !important; }
+  .neul-demo-sos, .neul-demo-summary-card, .neul-demo-location-card { transition:none !important; }
+}
+
+/* neul-alert-when-active-v15 */
+/* The RED pulse is reserved for a triggered local Lost Mode session.
+   The source of that session is still the Parent Mode demonstration button.
+   Remote call detection, remote GPS and real caregiver notifications require backend integration. */
+.neul-demo-parent[data-lost="true"] .neul-demo-incident-icon::after {
+  animation: neul-demo-pulse 2.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion:reduce) {
+  .neul-demo-parent[data-lost="true"] .neul-demo-incident-icon::after { animation:none !important; }
+}

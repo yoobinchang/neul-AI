@@ -93,8 +93,8 @@ export default function FocusHome({
         : "No location shared yet";
 
   return (
-    <div className="mx-auto max-w-[1180px] pb-4 text-[#1D3857]" data-neul-ui="summary-and-map-v09">
-      <header className="mb-7 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
+    <div className="neul-demo-home mx-auto max-w-[1180px] pb-4 text-[#1D3857]" data-neul-ui="summary-and-map-v09">
+      <header className="neul-demo-appear mb-7 flex flex-wrap items-end justify-between gap-4 sm:mb-8">
         <div>
           <p className="mb-2 text-[13px] font-medium text-[#70859B]">Caregiver home</p>
           <h1 className="max-w-full break-words text-[clamp(2.15rem,4.4vw,4rem)] font-semibold leading-[1.09] tracking-[-0.055em] [overflow-wrap:anywhere]">
@@ -108,16 +108,23 @@ export default function FocusHome({
             onClick={onCategories}
             className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#E2EAF2] bg-white px-4 text-[13px] font-medium text-[#294969] transition hover:bg-[#F5F8FB]"
           >
-            <Bell size={16} /> {pendingAlerts} sample follow-up{pendingAlerts !== 1 ? "s" : ""} <ArrowRight size={16} />
+            <Bell size={16} /> {pendingAlerts} to review <ArrowRight size={16} />
           </button>
         )}
       </header>
 
+      {isLost && (
+        <button type="button" onClick={onLocation} className="neul-demo-lost-banner mb-5 flex w-full items-center gap-4 text-left" aria-label="Review Lost Mode location preview">
+          <span className="neul-demo-beacon-dot" aria-hidden="true" />
+          <span className="min-w-0 flex-1"><strong className="block text-[14px] font-semibold">Lost Mode preview active</strong><small className="block text-[12px] leading-6">Started on this device · no family alert was delivered</small></span>
+          <ArrowRight size={19} className="shrink-0" />
+        </button>
+      )}
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,.88fr)] lg:gap-6">
-        <section className="flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-[#E2EAF2] bg-white p-6 shadow-[0_16px_55px_-40px_rgba(22,49,78,.22)] sm:p-8" aria-label="Latest call summary">
+        <section className="neul-demo-summary-card neul-demo-appear flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-[#E2EAF2] bg-white p-6 shadow-[0_16px_55px_-40px_rgba(22,49,78,.22)] sm:p-8" aria-label="Latest call summary">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="flex items-center gap-2 text-[13px] font-semibold text-[#24496D]"><PhoneCall size={17} /> Latest call</p>
-            <span className="text-[12px] text-[#71859A]">Sample data</span>
+            <span className="text-[12px] text-[#71859A]">Family workspace</span>
           </div>
           <div className="mt-7">
             <h2 className="max-w-[540px] text-[clamp(1.95rem,3vw,2.8rem)] font-semibold leading-[1.13] tracking-[-0.055em] text-[#173453]">
@@ -139,11 +146,12 @@ export default function FocusHome({
           </div>
         </section>
 
-        <section className="flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-[#E2EAF2] bg-white shadow-[0_16px_55px_-40px_rgba(22,49,78,.22)]" aria-label="Parent location">
+        <section className="neul-demo-location-card neul-demo-appear flex min-w-0 flex-col overflow-hidden rounded-[24px] border border-[#E2EAF2] bg-white shadow-[0_16px_55px_-40px_rgba(22,49,78,.22)]" data-lost={isLost ? "true" : "false"} aria-label="Parent location">
           <div className="flex items-start justify-between gap-3 px-6 pb-4 pt-6 sm:px-7 sm:pt-7">
             <div>
               <p className="flex items-center gap-2 text-[13px] font-semibold text-[#24496D]"><MapPin size={17} /> Parent location</p>
               <p className="mt-2 text-[13px] leading-6 text-[#6D8296]" role="status">{locationStatus}</p>
+              {isLost && <p className="mt-2 inline-flex items-center gap-2 text-[12px] font-semibold text-[#C83B49]"><span className="neul-demo-beacon-dot" aria-hidden="true" /> Lost Mode preview</p>}
             </div>
             <button type="button" onClick={onLocation} aria-label="Open location details" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#E2EAF2] text-[#54718F] transition hover:bg-[#F5F8FB]"><ArrowUpRight size={19} /></button>
           </div>
@@ -161,7 +169,7 @@ export default function FocusHome({
             ) : (
               <>
                 <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-65" style={{ backgroundImage: "linear-gradient(105deg, transparent 0 48%, #D9E5EF 48% 51%, transparent 51% 100%), linear-gradient(12deg, transparent 0 35%, #DCE6F0 35% 39%, transparent 39% 100%)", backgroundSize: "110px 130px, 180px 130px" }} />
-                <div className="relative z-10 grid h-[66px] w-[66px] place-items-center rounded-[22px] border border-[#E1E9F2] bg-white text-[#1F3A5F] shadow-[0_10px_35px_-20px_rgba(24,57,92,.27)]"><Navigation2 size={28} /></div>
+                <div className={`neul-demo-map-marker relative z-10 grid h-[66px] w-[66px] place-items-center rounded-[22px] border border-[#E1E9F2] bg-white text-[#1F3A5F] shadow-[0_10px_35px_-20px_rgba(24,57,92,.27)] ${isLost ? "neul-demo-map-marker-lost" : ""}`}><Navigation2 size={28} /></div>
                 <p className="relative z-10 mt-4 px-5 text-center text-[16px] font-semibold text-[#244665]">{hasLocation ? "Location ready to view" : "Waiting for location"}</p>
                 <p className="relative z-10 mt-2 max-w-[280px] px-5 text-center text-[12px] leading-6 text-[#627D96]">
                   {hasLocation ? "OpenStreetMap loads after you choose to show it." : "Start Parent Mode on this device to try the GPS demo."}

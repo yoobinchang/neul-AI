@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { ArrowLeft, Check, LocateFixed, MapPin, RefreshCcw, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Check, LocateFixed, MapPin, RefreshCcw, ShieldCheck, Radio } from "lucide-react";
 import type { LostSession } from "./types";
 import NeulBrand from "./NeulBrand";
 
@@ -48,7 +48,7 @@ export default function ParentMode({ parentName, lostSession, onLostUpdate, onCa
 
 
   return (
-    <div className="min-h-[100dvh] bg-[#F7FAFD] text-[#173252]" data-neul-patch="neul-clarity-v07">
+    <div className="neul-demo-parent min-h-[100dvh] bg-[#F7FAFD] text-[#173252]" data-lost={lostSession ? "true" : "false"} data-neul-patch="neul-clarity-v07">
       <header className="border-b border-[#E8EEF5] bg-white/92 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[960px] items-center justify-between gap-3 px-5 py-5 sm:px-8">
           <NeulBrand mode="parent" />
@@ -72,11 +72,13 @@ export default function ParentMode({ parentName, lostSession, onLostUpdate, onCa
             <button
               type="button"
               onClick={requestHelpLocation}
-              className="mt-8 flex min-h-[320px] w-full flex-col items-center justify-center rounded-[36px] bg-[#173252] px-8 text-center text-white shadow-[0_30px_70px_-38px_rgba(23,50,82,.52)] transition hover:-translate-y-0.5 sm:min-h-[380px]"
+              className="neul-demo-sos mt-8 flex min-h-[320px] w-full flex-col items-center justify-center rounded-[36px] px-8 text-center text-white transition sm:min-h-[380px]"
             >
-              <span className="flex h-24 w-24 items-center justify-center rounded-[30px] bg-white/12 ring-1 ring-white/20"><MapPin size={54} /></span>
-              <span className="mt-7 text-[clamp(2.7rem,7vw,4.7rem)] font-semibold leading-none tracking-[-0.07em]">I&apos;m lost</span>
-              <span className="mt-4 max-w-[340px] text-[18px] leading-8 text-white/85">We can show you what to do next.</span>
+              <span className="neul-demo-sos-halo neul-demo-sos-halo-one" aria-hidden="true" />
+              <span className="neul-demo-sos-halo neul-demo-sos-halo-two" aria-hidden="true" />
+              <span className="neul-demo-sos-center flex h-24 w-24 items-center justify-center rounded-[30px] bg-white/15 ring-1 ring-white/25"><MapPin size={54} strokeWidth={2.1} /></span>
+              <span className="neul-demo-sos-title mt-7 text-[clamp(2.7rem,7vw,4.7rem)] font-semibold leading-none tracking-[-0.07em]">I&apos;M LOST</span>
+              <span className="neul-demo-sos-description mt-4 max-w-[370px] text-[18px] leading-8 text-white/90">Tap to request this device&apos;s location.</span>
             </button>
 
             <div className="mt-5 rounded-[18px] bg-white px-5 py-4 text-center text-[14px] leading-6 text-[#55718C] ring-1 ring-[#E4EAF2]">
@@ -84,13 +86,18 @@ export default function ParentMode({ parentName, lostSession, onLostUpdate, onCa
             </div>
           </div>
         ) : (
-          <div className="mx-auto max-w-[760px]">
+          <div className="mx-auto max-w-[760px] neul-demo-appear">
+            <div className="neul-demo-incident-banner" role="status">
+              <span className="neul-demo-beacon-dot" aria-hidden="true" />
+              <Radio size={18} aria-hidden="true" />
+              <span><strong>Lost Mode preview active</strong><small>Local to this browser · no notification sent</small></span>
+            </div>
             <h1 className="text-[clamp(2.4rem,5vw,4rem)] font-semibold leading-[1] tracking-[-0.07em] text-[#173252]">Let’s find a safe place.</h1>
             <p className="mt-4 max-w-[560px] text-[17px] leading-8 text-[#607B96]">This is a demo. No alert has been sent. Please contact a trusted person directly if you need help.</p>
 
-            <section className="mt-7 rounded-[30px] border border-[#E3EAF2] bg-white p-6 shadow-[0_24px_55px_-42px_rgba(23,50,82,.30)] sm:p-8">
+            <section className="neul-demo-active-panel mt-7 rounded-[30px] border border-[#F3CED0] bg-white p-6 shadow-[0_24px_55px_-42px_rgba(158,37,48,.30)] sm:p-8">
               <div className="flex items-center gap-3">
-                <span className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#EDF3F8] text-[#173252]"><ShieldCheck size={26} /></span>
+                <span className="neul-demo-incident-icon relative flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#FDE8EB] text-[#C83B49]"><ShieldCheck size={26} /></span>
                 <div>
                   <p className="text-[12px] font-medium text-[#6C8196]">Current status</p>
                   <h2 className="text-[28px] font-semibold tracking-[-0.05em] text-[#173252]">{locating ? "Finding your location" : located ? "Location found" : "Location unavailable"}</h2>
@@ -121,7 +128,7 @@ export default function ParentMode({ parentName, lostSession, onLostUpdate, onCa
               />
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                <button type="button" onClick={requestHelpLocation} disabled={locating} className="flex min-h-[60px] items-center justify-center gap-2 rounded-2xl bg-[#173252] px-5 text-[16px] font-semibold text-white disabled:opacity-60">
+                <button type="button" onClick={requestHelpLocation} disabled={locating} className="flex min-h-[60px] items-center justify-center gap-2 rounded-2xl bg-[#C83B49] px-5 text-[16px] font-semibold text-white transition hover:bg-[#AB2D3B] disabled:opacity-60">
                   <RefreshCcw size={18} /> Try again
                 </button>
                 <button type="button" onClick={() => { locationRequestId.current += 1; onLostUpdate(null); }} className="flex min-h-[60px] items-center justify-center gap-2 rounded-2xl border border-[#E3EAF2] bg-white px-5 text-[16px] font-semibold text-[#173252]">
