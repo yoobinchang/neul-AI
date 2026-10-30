@@ -4,7 +4,7 @@ An AI phone assistant that supports families when a caregiver cannot answer.
 
 A parent calls their child's existing number. When a tested conditional-forwarding setup routes an unanswered call to Neul, the AI identifies itself, uses caregiver-provided context, and talks with the parent. The caregiver reviews call summaries in the Neul app (an installable PWA) and receives alerts when follow-up may be needed.
 
-**Status: planning scaffold. No application, database, integrations, or deployment are implemented yet.** The stack and roles are agreed (see [decisions](docs/decisions.md)); endpoint names, fields and schema remain review drafts until implemented.
+**Status: caregiver UI with Supabase email/password auth, family RLS, profile editing, and database-backed calls/alerts.** Migration and fictional seed files are included; apply them to a development project using [the setup guide](docs/supabase-setup.md). Phone/voice integrations and hosted deployment are not configured by this repository.
 
 ## Product boundaries
 
@@ -53,9 +53,9 @@ Save one fictional completed call to the database and display it in C's app. A t
 
 ## Local setup
 
-There is no runnable application yet. The stack-initialization PR (A + C) adds the Next.js project, Supabase configuration, runtime versions, and run/test commands. Do not invent commands or add a CI workflow that reports success without checking code.
+Use Node.js 22 or newer. In `app/`, run `npm ci` then `npm run dev`. Follow [Supabase setup](docs/supabase-setup.md) for migration, fictional seed, account assignment, environment variables and verification commands.
 
-Copy `.env.example` to a local `.env` and fill in values from the team's shared secret store. Never commit credentials or real family data.
+Copy `app/.env.example` to `app/.env.local` for the two public Supabase settings. Root `.env.example` documents future server integration variables. Never commit credentials or real family data.
 
 ## Document status
 

@@ -1,6 +1,6 @@
 # Interface contracts
 
-**Status: draft examples for review, not implemented.** A maintains this document; B and C review the parts they produce or consume. Agree C01–C03 first (Week 1), then the rest as features need them.
+**Status: agreed interface contracts; implementation is incremental.** A maintains this document; B and C review changes to the parts they produce or consume. The caregiver integration implements C03 reads, paginated C04 reads (manual refresh), C05 edits and C06 acknowledgment persistence. See [setup and implementation scope](supabase-setup.md).
 
 ## Common conventions
 
@@ -64,7 +64,7 @@ Context passed to B:
 }
 ```
 
-context_status is resolved or unknown_caller. For unknown_caller, parent is null and B uses generic instructions; primary_contact is used only for the alert path. Unknown destination returns FAMILY_NOT_FOUND and no family context. Missing primary contact is null and must not silently count as a valid escalation setup. A creates the call row at call start (status in_progress) so alerts can reference call_id. Whether recent summaries are included is open (D10).
+Neul only talks with the family's parent. If caller_number is null or doesn't match the parent's saved phone_number (including when that number is blank), the call is rejected before the agent starts: no call row and no family context. Unknown destination is rejected the same way. context_status is therefore always resolved for answered calls; unknown_caller remains only for the agent's fallback defaults, used if the webhook can't be reached, which end the call without sharing anything. Missing primary contact is null and must not silently count as a valid escalation setup. A creates the call row at call start (status in_progress) so alerts can reference call_id. Whether recent summaries are included is open (D10).
 
 ## C02: Completed call (A → B)
 
@@ -104,6 +104,8 @@ On failure, summary_status is failed and summary is null; retries are bounded. A
 
 ## C03: Call detail (database → C)
 
+The view also exposes `family_id` as an additive filter column for multi-family workspaces; the selected C03 fields below are unchanged.
+
 C reads one row from the `call_details` view (row-level security restricts it to the caregiver's family):
 
 ```json
@@ -133,6 +135,7 @@ C updates the `parents` row directly. Editable fields:
 ```json
 {
   "preferred_name": "Alex",
+  "phone_number": "+12025550101",
   "routine": "Enjoys gardening in the morning.",
   "family_facts": ["Sam is the primary caregiver."],
   "calming_topics": ["Gardening"],
@@ -140,7 +143,9 @@ C updates the `parents` row directly. Editable fields:
 }
 ```
 
-Row-level security allows edits only by caregivers of that family. Database constraints enforce: preferred_name nonempty, max 100 characters; routine max 2000; arrays max 20 items, 300 characters each. IDs and family ownership are not editable. Changes apply to the next C01 lookup. Initial profile creation is part of onboarding and needs its own contract.
+Row-level security allows edits only by caregivers of that family. Database constraints enforce: preferred_name nonempty, max 100 characters; routine max 2000; arrays max 20 items, 300 characters each. phone_number is nullable; non-null values must match `^\+[1-9][0-9]{7,14}$` (E.164). Omit it to preserve the existing value; send null to clear it, not an empty string. IDs and family ownership are not editable. Changes apply to the next C01 lookup. Initial profile creation is part of onboarding and needs its own contract.
+
+The brain inbound handler answers only calls from this number (plus the team test phones in the optional DEMO_PARENT_NUMBERS secret, see brain-handoff.md) and rejects all others. A null number matches nobody, so set a verified demo number in the hosted database before live calls. C still needs to add a "Parent's phone number" form field. Phone-number matching is routing context, not strong identity verification.
 
 ## C06: Alert record and delivery attempts (B → A → C)
 

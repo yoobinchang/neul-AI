@@ -1,21 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useCallback, useRef, useState, type ReactNode } from "react";
 import {
-  Activity,
   Compass,
   ArrowLeftRight,
   ArrowRight,
   ArrowUpRight,
   Bell,
   CalendarDays,
-  Check,
   CheckCheck,
   ChevronRight,
-  CircleCheck,
   Clock3,
   Heart,
-  Info,
   LayoutDashboard,
   MapPin,
   MessageCircle,
@@ -30,166 +26,18 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import ParentMode from "@/components/ParentMode";
-import CallDetailsModal from "@/components/CallDetailsModal";
 import NeulIntro from "@/components/NeulIntro";
 import FocusHome from "@/components/FocusHome";
 import NeulBrand from "@/components/NeulBrand";
 import LocationPanel from "@/components/LocationPanel";
 import type { LostSession } from "@/components/types";
 
+import type { Session, SupabaseClient } from '@supabase/supabase-js';
+import AuthGate from '@/components/auth/AuthGate';
+import { CALL_FIELDS, PAGE_SIZE, loadWorkspace, toCall, type CallDetail, type CallRecord, type Family, type Parent, type Workspace } from '@/lib/caregiver';
+
 type Tab = "home" | "calls" | "alerts" | "location" | "profile";
-type CallTag = "Routine" | "Follow-up" | "Flagged";
-
-type TranscriptLine = { speaker: "Mom" | "Neul"; text: string };
-type CallRecord = {
-  id: string;
-  day: string;
-  time: string;
-  duration: string;
-  cost: string;
-  title: string;
-  summary: string;
-  tag: CallTag;
-  transcript: TranscriptLine[];
-};
-type AlertRecord = {
-  id: string;
-  label: string;
-  when: string;
-  details: string;
-  callId: string;
-  icon: "location" | "conversation";
-};
-type ParentProfile = {
-  name: string;
-  nickname: string;
-  phone: string;
-  conversationNotes: string;
-  everydayRoutine: string;
-};
-
-const INITIAL_PROFILE: ParentProfile = {
-  name: "Grace Kim",
-  nickname: "Mom",
-  phone: "+1 (555) 010-0184",
-  conversationNotes:
-    "Speak slowly and warmly. She loves gardening, her dog Coco, and hearing about family visits.",
-  everydayRoutine:
-    "Usually takes a morning walk and enjoys a check-in after lunch.",
-};
-
-// Mock records only. Replace this data source with the team's agreed Supabase contract later.
-const CALLS: CallRecord[] = [
-  {
-    id: "call-01", day: "Today", time: "10:42 AM", duration: "3m 24s", cost: "$0.19",
-    title: "A lovely morning check-in", tag: "Routine",
-    summary: "Mom talked about watering her plants and asked when Alex is visiting. She sounded comfortable and cheerful.",
-    transcript: [
-      { speaker: "Neul", text: "Hi, I'm Neul, an AI companion. How are you feeling today?" },
-      { speaker: "Mom", text: "Pretty good! I watered all the flowers this morning." },
-      { speaker: "Neul", text: "That sounds lovely. Anything you would like Alex to know?" },
-      { speaker: "Mom", text: "Just ask when they're coming to visit." },
-    ],
-  },
-  {
-    id: "call-02", day: "Today", time: "9:15 AM", duration: "2m 08s", cost: "$0.12",
-    title: "Question about an appointment", tag: "Follow-up",
-    summary: "Mom asked twice about an upcoming appointment. A quick family follow-up may help reassure her.",
-    transcript: [
-      { speaker: "Neul", text: "Hello, I'm Neul. What can I help you with?" },
-      { speaker: "Mom", text: "Do I have an appointment tomorrow?" },
-      { speaker: "Neul", text: "I don't have a confirmed schedule for that. Alex can check with you." },
-      { speaker: "Mom", text: "Okay. Will you remind Alex to check?" },
-    ],
-  },
-  {
-    id: "call-03", day: "Yesterday", time: "6:28 PM", duration: "4m 31s", cost: "$0.25",
-    title: "Looking for the way home", tag: "Flagged",
-    summary: "During a scripted Lost Mode test, Mom said she was unsure where she was. This is demonstration data; no real alert was sent.",
-    transcript: [
-      { speaker: "Mom", text: "I'm not sure where I am right now." },
-      { speaker: "Neul", text: "I'm here with you. Are you somewhere safe where you can stay for a moment?" },
-      { speaker: "Mom", text: "I see a small park and a blue bench." },
-      { speaker: "Neul", text: "Thank you. I'll note those details for your family." },
-    ],
-  },
-  {
-    id: "call-04", day: "Yesterday", time: "1:06 PM", duration: "2m 52s", cost: "$0.16",
-    title: "Family lunch plans", tag: "Routine",
-    summary: "Mom chatted about making soup and remembered that Alex likes homemade noodles.",
-    transcript: [
-      { speaker: "Neul", text: "It's nice to hear from you. What are you up to?" },
-      { speaker: "Mom", text: "Making soup. Alex used to ask for noodles every time!" },
-    ],
-  },
-  {
-    id: "call-05", day: "Oct 14", time: "11:30 AM", duration: "1m 46s", cost: "$0.10",
-    title: "A quick hello", tag: "Routine",
-    summary: "Mom said hello and shared that she had enjoyed her morning walk.",
-    transcript: [
-      { speaker: "Neul", text: "Hi! I'm Neul. How is your day going?" },
-      { speaker: "Mom", text: "Just got back from a nice walk!" },
-    ],
-  },
-  {
-    id: "call-06", day: "Oct 14", time: "8:20 AM", duration: "2m 18s", cost: "$0.13",
-    title: "Checking the weather", tag: "Routine",
-    summary: "Mom asked about the weather before heading outside. No follow-up was requested.",
-    transcript: [
-      { speaker: "Mom", text: "Does it look like rain today?" },
-      { speaker: "Neul", text: "I can't verify live weather right now. Checking a forecast before leaving would be best." },
-    ],
-  },
-  {
-    id: "call-07", day: "Oct 13", time: "7:10 PM", duration: "3m 08s", cost: "$0.17",
-    title: "Remembering a favorite song", tag: "Routine",
-    summary: "Mom reminisced about a song she used to listen to with the family.",
-    transcript: [
-      { speaker: "Mom", text: "That old song reminds me of family road trips." },
-      { speaker: "Neul", text: "What do you remember most about those trips?" },
-    ],
-  },
-  {
-    id: "call-08", day: "Oct 13", time: "2:42 PM", duration: "2m 55s", cost: "$0.16",
-    title: "Where did I put my keys?", tag: "Follow-up",
-    summary: "Mom asked where she might have left her keys. She planned to check the kitchen counter.",
-    transcript: [
-      { speaker: "Mom", text: "I can't find my keys anywhere." },
-      { speaker: "Neul", text: "We can think through the last place you remember using them." },
-    ],
-  },
-  {
-    id: "call-09", day: "Oct 12", time: "4:12 PM", duration: "1m 33s", cost: "$0.09",
-    title: "Checking on Coco", tag: "Routine",
-    summary: "Mom mentioned that Coco had been sleeping in the sun all afternoon.",
-    transcript: [
-      { speaker: "Mom", text: "Coco's found the warmest spot in the house again." },
-      { speaker: "Neul", text: "That sounds cozy!" },
-    ],
-  },
-  {
-    id: "call-10", day: "Oct 12", time: "9:50 AM", duration: "2m 11s", cost: "$0.12",
-    title: "Weekend plans", tag: "Routine",
-    summary: "Mom was looking forward to a weekend video call with the family.",
-    transcript: [
-      { speaker: "Mom", text: "Will we have our family video call this weekend?" },
-      { speaker: "Neul", text: "Alex can confirm the plans with you." },
-    ],
-  },
-];
-
-const ALERTS: AlertRecord[] = [
-  {
-    id: "alert-01", label: "Lost Mode test", when: "Yesterday · 6:28 PM",
-    details: "A scripted location-support scenario mentioned a park and a blue bench. Marked reviewed in this demo.",
-    callId: "call-03", icon: "location",
-  },
-  {
-    id: "alert-02", label: "Conversation follow-up", when: "Today · 9:15 AM",
-    details: "Mom asked about an appointment more than once. Consider checking the date with her.",
-    callId: "call-02", icon: "conversation",
-  },
-];
+type CallTag = CallRecord["tag"];
 
 const NAV: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "home", label: "Home", icon: LayoutDashboard },
@@ -218,25 +66,34 @@ function SectionHeading({ eyebrow, title, action }: { eyebrow?: string; title: s
 function StatusChip({ tag }: { tag: CallTag }) {
   const classes = tag === "Routine"
     ? "bg-[#EFF4FA] text-[#294B73]"
-    : tag === "Follow-up"
+    : tag === "Urgent"
       ? "bg-[#FFF2D7] text-[#8A5E15]"
       : "bg-[#ffebe6] text-[#b45f4f]";
   return <span className={`inline-flex items-center rounded-full px-3 py-1.5 text-[11px] font-bold ${classes}`}>{tag}</span>;
 }
 
 function DemoNotice() {
-  return <div className="mb-5 text-[12px] text-[#7189A2]">Prototype preview · sample data only.</div>;
+  return (
+    <p className="mb-5 text-[12px] leading-6 text-[#75869B]">
+      Development preview · Calls and profiles come from the family workspace. Parent Mode location stays in this browser; no emergency messages are sent.
+    </p>
+  );
 }
 
 export default function Page() {
+  return <AuthGate>{(client, session) => <Dashboard key={session.user.id} client={client} session={session} />}</AuthGate>;
+}
+
+function Dashboard({ client, session }: { client: SupabaseClient; session: Session }) {
   const [tab, setTab] = useState<Tab>("home");
   const [mode, setMode] = useState<"caregiver" | "parent">("caregiver");
   const [lostSession, setLostSession] = useState<LostSession | null>(null);
   const [selectedCall, setSelectedCall] = useState<CallRecord | null>(null);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"All" | "Flagged" | "Follow-up">("All");
-  const [profile, setProfile] = useState<ParentProfile>(INITIAL_PROFILE);
-  const [reviewedIds, setReviewedIds] = useState<string[]>(["alert-01"]);
+  const [filter, setFilter] = useState<"All" | "Urgent" | "Lost">("All");
+  const [families, setFamilies] = useState<Family[]>([]);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [profile, setProfile] = useState<Parent | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [introPhase, setIntroPhase] = useState<"checking" | "show" | "done">("checking");
@@ -254,16 +111,40 @@ export default function Page() {
     } catch { setIntroPhase("show"); }
   }, []);
 
-  useEffect(() => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(0);
+  const request = useRef(0);
+
+  const refresh = useCallback(async (family: Family, nextPage = 0) => {
+    const current = ++request.current;
+    setLoading(true); setError(''); setSelectedCall(null); setProfileSaved(false);
     try {
-      const savedProfile = localStorage.getItem("neul-demo-profile-v1");
-      if (savedProfile) setProfile({ ...INITIAL_PROFILE, ...JSON.parse(savedProfile) });
-      const savedAlerts = localStorage.getItem("neul-demo-reviewed-v1");
-      if (savedAlerts) setReviewedIds(JSON.parse(savedAlerts));
-    } catch {
-      // Demo still works when localStorage is unavailable.
-    }
-  }, []);
+      const data = await loadWorkspace(client, family, nextPage);
+      if (current !== request.current) return;
+      setWorkspace(data); setProfile(data.parents[0] ?? null); setPage(nextPage);
+    } catch (cause) {
+      if (current === request.current) { setWorkspace(null); setError(cause instanceof Error ? cause.message : 'Unable to load family data. Please try again.'); }
+    } finally { if (current === request.current) setLoading(false); }
+  }, [client]);
+
+  useEffect(() => {
+    let active = true;
+    client.from('families').select('family_id,display_name').order('created_at').then(({ data, error }) => {
+      if (!active) return;
+      if (error) { setError(error.message); setLoading(false); return; }
+      setFamilies(data ?? []);
+      if (data?.[0]) void refresh(data[0]);
+      else setLoading(false);
+    });
+    return () => { active = false; };
+  }, [client, refresh]);
+
+  async function signOut() {
+    const { error } = await client.auth.signOut();
+    if (error) setError(error.message);
+  }
 
   useEffect(() => {
     if (!selectedCall) return;
@@ -274,12 +155,22 @@ export default function Page() {
     return () => { document.removeEventListener("keydown", onEscape); document.body.style.overflow = oldOverflow; };
   }, [selectedCall]);
 
-  const pendingAlerts = ALERTS.filter((a) => !reviewedIds.includes(a.id)).length;
-  const filteredCalls = useMemo(() => CALLS.filter((call) => {
-    const matchesFilter = filter === "All" || call.tag === filter;
-    const matchesText = `${call.title} ${call.summary} ${call.day}`.toLowerCase().includes(query.toLowerCase().trim());
-    return matchesFilter && matchesText;
-  }), [filter, query]);
+  const CALLS = workspace?.calls ?? [];
+  const ALERTS = workspace?.alerts ?? [];
+  const reviewedIds = workspace?.reviewedIds ?? [];
+  const pendingAlerts = ALERTS.filter(a => !reviewedIds.includes(a.id)).length;
+  const filteredCalls = CALLS.filter(call => (filter === 'All' || call.tag === filter)
+    && `${call.title} ${call.summary} ${call.day}`.toLowerCase().includes(query.toLowerCase().trim()));
+
+  async function openCall(id: string) {
+    setError('');
+    const current = request.current;
+    const { data, error } = await client.from('call_details').select(CALL_FIELDS).eq('call_id', id).maybeSingle();
+    if (current !== request.current) return;
+    if (error) setError(error.message);
+    else if (!data) setError('Call not found.');
+    else setSelectedCall(toCall(data as CallDetail));
+  }
 
   function goTo(next: Tab) {
     setCategoriesOpen(false);
@@ -287,10 +178,16 @@ export default function Page() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function markReviewed(id: string) {
-    const next = Array.from(new Set([...reviewedIds, id]));
-    setReviewedIds(next);
-    try { localStorage.setItem("neul-demo-reviewed-v1", JSON.stringify(next)); } catch { /* ignore */ }
+  async function markReviewed(id: string) {
+    if (!workspace || saving) return;
+    setSaving(true); setError('');
+    const { error } = await client.from('acknowledgments').insert({
+      alert_id: id, family_id: workspace.family.family_id, caregiver_id: session.user.id,
+    });
+    // Another caregiver may already have acknowledged this alert.
+    if (error && error.code !== '23505') setError(error.message);
+    else setWorkspace(current => current ? { ...current, reviewedIds: [...current.reviewedIds, id] } : current);
+    setSaving(false);
   }
 
   function enterParentMode() {
@@ -306,9 +203,16 @@ export default function Page() {
     window.scrollTo({ top: 0, behavior: "auto" });
   }
 
-  function saveProfile() {
-    try { localStorage.setItem("neul-demo-profile-v1", JSON.stringify(profile)); } catch { /* ignore */ }
-    setProfileSaved(true);
+  async function saveProfile() {
+    if (!profile || saving) return;
+    setSaving(true); setError(''); setProfileSaved(false);
+    const { preferred_name, routine, family_facts, calming_topics, topics_to_avoid } = profile;
+    const { data, error } = await client.from('parents')
+      .update({ preferred_name, routine, family_facts, calming_topics, topics_to_avoid })
+      .eq('parent_id', profile.parent_id).select().single();
+    if (error) setError(error.message);
+    else { setProfile(data as Parent); setWorkspace(current => current ? { ...current, parents: current.parents.map(p => p.parent_id === data.parent_id ? data as Parent : p) } : current); setProfileSaved(true); }
+    setSaving(false);
   }
 
   const categoryGroups: { title: string; ids: Tab[] }[] = [
@@ -320,8 +224,18 @@ export default function Page() {
   if (introPhase === "checking") return <div className="neul-intro-checking" aria-label="Opening Neul"><span>neul<span className="text-[#F5A623]">.</span></span></div>;
   if (introPhase === "show") return <NeulIntro onEnter={enterApp} />;
 
+  if (loading || !workspace) return <main className="min-h-screen bg-[#F6F8FC] p-8 text-[#1F3A5F]">
+    <Brand /><h1 className="mt-8 text-2xl font-bold">Caregiver workspace</h1>
+    {loading ? <p role="status" className="mt-4">Loading your family…</p> : <>
+      {error ? <p role="alert" className="mt-4">{error}</p> : <p className="mt-4">Your account is ready. Ask your project administrator to connect it to your family.</p>}
+      <p className="mt-2">{session.user.email}</p>
+      <button className="mt-5 mr-5 underline" onClick={() => window.location.reload()}>Try again</button>
+      <button className="mt-5 underline" onClick={signOut}>Sign out</button>
+    </>}
+  </main>;
+
   if (mode === "parent") {
-    return <ParentMode parentName={profile.name.split(" ")[0] || profile.nickname} lostSession={lostSession} onLostUpdate={setLostSession} onCaregiverMode={returnToCaregiver} />;
+    return <ParentMode parentName={profile?.preferred_name ?? "Parent"} lostSession={lostSession} onLostUpdate={setLostSession} onCaregiverMode={returnToCaregiver} />;
   }
 
   return (
@@ -340,7 +254,7 @@ export default function Page() {
           <p className="mt-2 text-[12px] leading-5 text-[#527391]">Home shows the latest summary first.</p>
         </div>
         <button type="button" onClick={enterParentMode} className="mt-5 flex min-h-[49px] w-full items-center justify-between rounded-2xl border border-[#EFF4FA] bg-white px-4 text-[13px] font-bold text-[#294B73] hover:bg-[#EFF4FA]"><span className="inline-flex items-center gap-2"><ArrowLeftRight size={17}/> Parent Mode</span><ChevronRight size={17}/></button>
-        <p className="mt-4 px-4 text-[11px] text-[#7189A2]">Neul · Preview</p>
+        <p className="mt-4 px-4 text-[11px] text-[#7189A2]">Neul · Caregiver workspace</p>
       </aside>
 
       <div className="lg:ml-[256px]">
@@ -352,24 +266,29 @@ export default function Page() {
               <button onClick={() => setIntroPhase("show")} type="button" className="hidden items-center gap-2 rounded-full border border-[#EFF4FA] bg-white px-3 py-2 text-[11px] font-semibold text-[#527391] transition hover:bg-[#EEF3F9] sm:inline-flex"><Sparkles size={13} className="text-[#D69B40]" /> Replay intro</button>
               <button onClick={() => setCategoriesOpen(true)} type="button" className="inline-flex items-center gap-1.5 rounded-full border border-[#E5EBF3] bg-white px-3 py-2 text-[11px] font-semibold text-[#294B73] transition hover:bg-[#EEF3F9] lg:hidden"><Compass size={15}/> Categories</button>
               <button type="button" onClick={enterParentMode} className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-[#E8EFF8] px-3 text-[11px] font-bold text-[#1F3A5F] transition hover:bg-[#DFE9F5] sm:px-4 sm:text-[12px]"><ArrowLeftRight size={15}/><span className="hidden min-[360px]:inline">Parent Mode</span><span className="min-[360px]:hidden">Parent</span></button>
-              <div className="hidden h-10 w-10 items-center justify-center rounded-full bg-[#F4E3C3] text-[12px] font-extrabold text-[#665235] sm:flex" aria-label="Demo caregiver Alex">AX</div>
+              <button onClick={signOut} className="text-xs underline">Sign out</button>
             </div>
           </div>
         </header>
 
         <main className="mx-auto max-w-[1240px] px-5 pb-32 pt-7 sm:px-9 sm:pt-10 lg:px-12 lg:pb-16">
-          {tab !== "home" && <DemoNotice />}
+          <DemoNotice />
+          <div className="mb-5 flex flex-wrap items-center gap-4">
+            <label className="text-sm">Family <select aria-label="Family" className="rounded-lg border bg-white p-2" value={workspace.family.family_id} disabled={saving} onChange={e => { const family = families.find(f => f.family_id === e.target.value); if (family) { setLostSession(null); void refresh(family); } }}>{families.map(f => <option key={f.family_id} value={f.family_id}>{f.display_name}</option>)}</select></label>
+            <button disabled={saving} className="text-sm underline" onClick={() => refresh(workspace.family, page)}>Refresh data</button>
+          </div>
+          {error && <p role="alert" className="mb-5 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}
 
           {tab === "home" && (
             <FocusHome
-              nickname={profile.nickname}
-              parentName={profile.name}
-              summary={CALLS[0].summary}
-              title={CALLS[0].title}
-              callTime={`${CALLS[0].day} · ${CALLS[0].time} · ${CALLS[0].duration}`}
+              nickname={profile?.preferred_name?.trim() || profile?.name || "Parent"}
+              parentName={profile?.preferred_name?.trim() || profile?.name || "Parent"}
+              summary={CALLS[0]?.summary || "No calls have been saved yet."}
+              title={CALLS[0]?.title || "No recent calls"}
+              callTime={CALLS[0] ? `${CALLS[0].day} · ${CALLS[0].time} · ${CALLS[0].duration}` : "No calls yet"}
               pendingAlerts={pendingAlerts}
               isLost={Boolean(lostSession)}
-              onOpenCall={() => setSelectedCall(CALLS[0])}
+              onOpenCall={() => { if (CALLS[0]) void openCall(CALLS[0].id); }}
               onCategories={() => setCategoriesOpen(true)}
               onLocation={() => goTo("location")}
               lostSession={lostSession}
@@ -379,37 +298,44 @@ export default function Page() {
 
           {tab === "calls" && (
             <div>
-              <div className="mb-8"><p className="mb-3 text-[12px] font-medium text-[#7189A2]">Calls</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#1F3A5F] sm:text-[46px]">Call history</h1><p className="mt-3 text-[14px] leading-7 text-[#527391]">Browse ten sample call summaries and open a conversation to read the transcript, duration, and estimated cost.</p></div>
+              <div className="mb-8"><p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#527391]">Conversations</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#1F3A5F] sm:text-[46px]">Every little moment.</h1><p className="mt-3 text-[14px] leading-7 text-[#527391]">Browse saved call summaries and durations. Search and filters apply to the current page.</p></div>
               <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-h-[50px] max-w-[440px] flex-1 items-center gap-3 rounded-2xl border border-[#EFF4FA] bg-white px-4"><Search size={19} className="text-[#7189A2]"/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search conversations" aria-label="Search conversations" className="w-full border-0 bg-transparent py-3 text-[13px] text-[#294B73] outline-none placeholder:text-[#7189A2]" /></div>
-                <div aria-label="Filter calls" className="flex flex-wrap gap-2">{(["All", "Follow-up", "Flagged"] as const).map((label) => <button type="button" key={label} onClick={() => setFilter(label)} className={`rounded-full px-4 py-2.5 text-[12px] font-bold transition ${filter === label ? "bg-[#1F3A5F] text-white" : "border border-[#EFF4FA] bg-white text-[#7189A2] hover:text-[#294B73]"}`}>{label}</button>)}</div>
+                <div aria-label="Filter calls" className="flex flex-wrap gap-2">{(["All", "Urgent", "Lost"] as const).map((label) => <button type="button" key={label} onClick={() => setFilter(label)} className={`rounded-full px-4 py-2.5 text-[12px] font-bold transition ${filter === label ? "bg-[#1F3A5F] text-white" : "border border-[#EFF4FA] bg-white text-[#7189A2] hover:text-[#294B73]"}`}>{label}</button>)}</div>
               </div>
               <div className="overflow-hidden rounded-[26px] border border-[#E3EAF3] bg-white">
                 {filteredCalls.length ? filteredCalls.map((call, index) => (
-                  <button key={call.id} onClick={() => setSelectedCall(call)} className={`flex w-full items-start gap-3 p-5 text-left transition hover:bg-[#F7F9FC] sm:gap-5 sm:p-6 ${index !== 0 ? "border-t border-[#EFF4FA]" : ""}`}>
+                  <button key={call.id} onClick={() => openCall(call.id)} className={`flex w-full items-start gap-3 p-5 text-left transition hover:bg-[#F7F9FC] sm:gap-5 sm:p-6 ${index !== 0 ? "border-t border-[#EFF4FA]" : ""}`}>
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EFF4FA] text-[#527391]"><PhoneIncoming size={21}/></div>
-                    <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2 sm:justify-between"><h3 className="text-[14px] font-bold leading-6 text-[#294B73] sm:text-[15px]">{call.title}</h3><StatusChip tag={call.tag}/></div><p className="mt-2 line-clamp-2 text-[12px] leading-6 text-[#7189A2]">{call.summary}</p><p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#7189A2]"><span>{call.day}, {call.time}</span><span>{call.duration}</span><span>{call.cost} est.</span></p></div>
+                    <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2 sm:justify-between"><h3 className="text-[14px] font-bold leading-6 text-[#294B73] sm:text-[15px]">{call.title}</h3><StatusChip tag={call.tag}/></div><p className="mt-2 line-clamp-2 text-[12px] leading-6 text-[#7189A2]">{call.summary}</p><p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#7189A2]"><span>{call.day}, {call.time}</span><span>{call.duration}</span><span>{call.summaryStatus}</span></p></div>
                     <ChevronRight size={19} className="mt-2 shrink-0 text-[#A8BBD0]"/>
                   </button>
-                )) : <div className="p-12 text-center text-[14px] text-[#7189A2]">No sample calls match your search.</div>}
+                )) : <div className="p-12 text-center text-[14px] text-[#7189A2]">{workspace.callCount ? "No calls match on this page." : "No calls yet."}</div>}
               </div>
             </div>
           )}
 
+          {tab === "calls" && <div className="mt-5 flex items-center gap-4 text-sm">
+            <button disabled={page === 0} onClick={() => refresh(workspace.family, page - 1)} className="underline disabled:opacity-40">Previous</button>
+            <span>Page {page + 1} of {Math.max(1, Math.ceil(workspace.callCount / PAGE_SIZE))}</span>
+            <button disabled={(page + 1) * PAGE_SIZE >= workspace.callCount} onClick={() => refresh(workspace.family, page + 1)} className="underline disabled:opacity-40">Next</button>
+          </div>}
+
           {tab === "alerts" && (
             <div>
-              <div className="mb-8"><p className="mb-3 text-[12px] font-medium text-[#7189A2]">Notifications</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#1F3A5F] sm:text-[46px]">Alerts</h1><p className="mt-3 text-[14px] leading-7 text-[#527391]">An organized view of situations that may deserve a little extra attention.</p></div>
-              <div className="mb-7 flex items-center gap-4 rounded-[26px] border border-[#EFF4FA] bg-white p-5 sm:p-7"><div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-[#EFF4FA] text-[#527391]"><ShieldCheck size={24}/></div><div><h2 className="text-[16px] font-bold text-[#294B73]">{lostSession ? "Lost Mode preview in this browser" : "No active emergencies in this demo"}</h2><p className="mt-1 text-[12px] leading-6 text-[#7189A2]">{lostSession ? "A Parent Mode demo was started on this device; no SMS, calls or push alerts were delivered." : `${pendingAlerts} sample ${pendingAlerts === 1 ? "item needs" : "items need"} review. Real SMS, calls and push delivery are not yet connected.`}</p></div></div>
-              {lostSession && <div className="mb-7 flex flex-col gap-4 rounded-[24px] border border-[#f1d8c3] bg-[#fff8ed] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"><div className="flex items-start gap-3"><MapPin className="mt-1 shrink-0 text-[#b47752]" size={23}/><div><p className="text-[15px] font-bold text-[#865f43]">Parent selected “I'm lost”</p><p className="mt-1 text-[12px] leading-6 text-[#947965]">Demo event only · {lostSession.status === "located" ? "Device position available in this tab" : "Location unavailable or pending"} · not delivered</p></div></div><button type="button" onClick={() => goTo("location")} className="min-h-[46px] shrink-0 rounded-2xl bg-[#e8d1bd] px-5 text-[13px] font-bold text-[#77553e]">View location preview <ArrowRight className="ml-1 inline" size={16}/></button></div>}
-              <SectionHeading title="Alert history" eyebrow="Sample events" />
+              <div className="mb-8"><p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#527391]">Your notifications</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#1F3A5F] sm:text-[46px]">Here when it matters.</h1><p className="mt-3 text-[14px] leading-7 text-[#527391]">An organized view of situations that may deserve a little extra attention.</p></div>
+              <div className="mb-7 flex items-center gap-4 rounded-[26px] border border-[#EFF4FA] bg-white p-5 sm:p-7"><div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-[#EFF4FA] text-[#527391]"><ShieldCheck size={24}/></div><div><h2 className="text-[16px] font-bold text-[#294B73]">{lostSession ? "Lost Mode preview in this browser" : "Family alerts"}</h2><p className="mt-1 text-[12px] leading-6 text-[#7189A2]">{lostSession ? "A Parent Mode demo was started on this device; no SMS, calls or push alerts were delivered." : `${pendingAlerts} ${pendingAlerts === 1 ? "item needs" : "items need"} review. Real SMS, calls and push delivery are not yet connected.`}</p></div></div>
+              {lostSession && <div className="mb-7 flex flex-col gap-4 rounded-[24px] border border-[#f1d8c3] bg-[#fff8ed] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"><div className="flex items-start gap-3"><MapPin className="mt-1 shrink-0 text-[#b47752]" size={23}/><div><p className="text-[15px] font-bold text-[#865f43]">Parent selected “I&apos;m lost”</p><p className="mt-1 text-[12px] leading-6 text-[#947965]">Demo event only · {lostSession.status === "located" ? "Device position available in this tab" : "Location unavailable or pending"} · not delivered</p></div></div><button type="button" onClick={() => goTo("location")} className="min-h-[46px] shrink-0 rounded-2xl bg-[#e8d1bd] px-5 text-[13px] font-bold text-[#77553e]">View location preview <ArrowRight className="ml-1 inline" size={16}/></button></div>}
+              <SectionHeading title="Alert history" eyebrow="Stored events" />
               <div className="space-y-4">
+                {!ALERTS.length && <p className="p-6 text-sm">No alerts yet.</p>}
                 {ALERTS.map((alert) => {
                   const reviewed = reviewedIds.includes(alert.id);
                   const Icon = alert.icon === "location" ? MapPin : MessageCircle;
                   return <article key={alert.id} className="rounded-[26px] border border-[#E3EAF3] bg-white p-6 sm:p-7">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start"><div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${reviewed ? "bg-[#EFF4FA] text-[#527391]" : "bg-[#FFF1D7] text-[#c28c59]"}`}><Icon size={22}/></div>
                     <div className="flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-[16px] font-bold text-[#294B73]">{alert.label}</h3><span className={`rounded-full px-3 py-1.5 text-[11px] font-bold ${reviewed ? "bg-[#EFF4FA] text-[#527391]" : "bg-[#FFF1D7] text-[#ac7b36]"}`}>{reviewed ? "Reviewed" : "Needs review"}</span></div><p className="mt-1 text-[12px] text-[#7189A2]">{alert.when}</p><p className="mt-4 text-[13px] leading-7 text-[#527391]">{alert.details}</p>
-                    <div className="mt-5 flex flex-wrap gap-3"><button onClick={() => setSelectedCall(CALLS.find((call) => call.id === alert.callId) ?? null)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#EFF4FA] px-4 text-[12px] font-bold text-[#527391]">View related call <ArrowUpRight size={15}/></button>{!reviewed && <button onClick={() => markReviewed(alert.id)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#1F3A5F] px-4 text-[12px] font-bold text-white hover:bg-[#1C3454]"><CheckCheck size={15}/> Mark reviewed</button>}</div>
+                    <div className="mt-5 flex flex-wrap gap-3"><button onClick={() => openCall(alert.callId)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#EFF4FA] px-4 text-[12px] font-bold text-[#527391]">View related call <ArrowUpRight size={15}/></button>{!reviewed && <button disabled={saving} onClick={() => markReviewed(alert.id)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#1F3A5F] px-4 text-[12px] font-bold text-white hover:bg-[#1C3454]"><CheckCheck size={15}/> Mark reviewed</button>}</div>
                     </div></div>
                   </article>;
                 })}
@@ -423,15 +349,24 @@ export default function Page() {
             <div>
               <div className="mb-8"><p className="mb-3 text-[12px] font-medium text-[#7189A2]">Family</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#1F3A5F] sm:text-[46px]">Mom&apos;s profile</h1><p className="mt-3 text-[14px] leading-7 text-[#527391]">Help Neul feel familiar by keeping a few personal details close at hand.</p></div>
               <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-                <form onSubmit={(event) => { event.preventDefault(); saveProfile(); }} className="rounded-[28px] border border-[#E3EAF3] bg-white p-6 sm:p-8">
-                  <div className="mb-7 flex items-center gap-4"><div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-[#EFF4FA] text-[26px] font-bold text-[#527391]">GK</div><div><p className="text-[18px] font-bold tracking-[-0.04em] text-[#1C3454]">{profile.name || "Sample parent"}</p><p className="mt-1 text-[12px] text-[#7189A2]">Parent profile · Demo data</p></div></div>
-                  <div className="grid gap-5 sm:grid-cols-2"><label className="block"><span className="mb-2 block text-[12px] font-bold text-[#294B73]">Full name</span><input value={profile.name} onChange={(event) => { setProfile({ ...profile, name: event.target.value }); setProfileSaved(false); }} className="neul-input" /></label><label className="block"><span className="mb-2 block text-[12px] font-bold text-[#294B73]">What you call them</span><input value={profile.nickname} onChange={(event) => { setProfile({ ...profile, nickname: event.target.value }); setProfileSaved(false); }} className="neul-input" /></label></div>
-                  <label className="mt-5 block"><span className="mb-2 block text-[12px] font-bold text-[#294B73]">Phone number (display only)</span><input value={profile.phone} onChange={(event) => { setProfile({ ...profile, phone: event.target.value }); setProfileSaved(false); }} className="neul-input" /></label>
-                  <label className="mt-5 block"><span className="mb-2 block text-[12px] font-bold text-[#294B73]">Conversation preferences</span><textarea rows={4} value={profile.conversationNotes} onChange={(event) => { setProfile({ ...profile, conversationNotes: event.target.value }); setProfileSaved(false); }} className="neul-input min-h-[115px] resize-y" /></label>
-                  <label className="mt-5 block"><span className="mb-2 block text-[12px] font-bold text-[#294B73]">Everyday routine</span><textarea rows={3} value={profile.everydayRoutine} onChange={(event) => { setProfile({ ...profile, everydayRoutine: event.target.value }); setProfileSaved(false); }} className="neul-input min-h-[90px] resize-y" /></label>
-                  <div className="mt-7 flex flex-wrap items-center gap-3"><button type="submit" className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-2xl bg-[#1F3A5F] px-6 text-[13px] font-bold text-white hover:bg-[#1C3454]"><Check size={17}/> Save sample profile</button>{profileSaved && <span role="status" className="text-[12px] font-semibold text-[#527391]">Saved on this browser</span>}</div>
-                </form>
-                <div className="space-y-5"><div className="rounded-[28px] border border-[#E3EAF3] bg-white p-6 sm:p-7"><div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EFF4FA] text-[#527391]"><Users size={21}/></div><h2 className="text-[19px] font-bold tracking-[-0.04em]">Care circle</h2><p className="mt-2 text-[12px] leading-6 text-[#7189A2]">The people you want close when a moment matters.</p><div className="mt-5 space-y-3"><div className="flex items-center gap-3 rounded-2xl bg-[#F7F9FC] p-4"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF4FA] text-[12px] font-bold text-[#527391]">AX</div><div><p className="text-[13px] font-bold">Alex · Primary caregiver</p><p className="mt-1 text-[11px] text-[#7189A2]">Sample contact</p></div><CircleCheck size={17} className="ml-auto text-[#7189A2]"/></div><div className="flex items-center gap-3 rounded-2xl bg-[#F7F9FC] p-4"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f2e7dc] text-[12px] font-bold text-[#a38666]">JK</div><div><p className="text-[13px] font-bold">Jordan · Backup contact</p><p className="mt-1 text-[11px] text-[#7189A2]">Sample contact</p></div></div></div></div><div className="rounded-[28px] bg-[#EAF0F7] p-6 sm:p-7"><ShieldCheck size={24} className="text-[#527391]"/><h2 className="mt-4 text-[16px] font-bold text-[#294B73]">Made to be personal, and private.</h2><p className="mt-2 text-[12px] leading-6 text-[#527391]">For now, edits are saved only in this browser. Supabase login, family permissions, and syncing are future integration steps.</p></div></div>
+                {profile ? <form onSubmit={event => { event.preventDefault(); void saveProfile(); }} className="rounded-[28px] border border-[#E3EAF3] bg-white p-6 sm:p-8">
+                  {workspace.parents.length > 1 && <label className="block mb-5">Parent<select className="neul-input" value={profile.parent_id} onChange={e => { setProfile(workspace.parents.find(p => p.parent_id === e.target.value) ?? null); setProfileSaved(false); }}>{workspace.parents.map(p => <option key={p.parent_id} value={p.parent_id}>{p.name}</option>)}</select></label>}
+                  <h2 className="mb-6 text-xl font-bold">{profile.name}</h2>
+                  <label className="block">Preferred name<input required maxLength={100} value={profile.preferred_name} onChange={e => { setProfile({ ...profile, preferred_name: e.target.value }); setProfileSaved(false); }} className="neul-input mt-2" /></label>
+                  <label className="mt-5 block">Everyday routine<textarea maxLength={2000} rows={4} value={profile.routine} onChange={e => { setProfile({ ...profile, routine: e.target.value }); setProfileSaved(false); }} className="neul-input mt-2" /></label>
+                  {(['family_facts', 'calming_topics', 'topics_to_avoid'] as const).map(field => <label key={field} className="mt-5 block">
+                    {{ family_facts: 'Family facts', calming_topics: 'Calming topics', topics_to_avoid: 'Topics to avoid' }[field]}
+                    <span className="block text-xs text-[#7189A2]">One per line, up to 20 items of 300 characters each.</span>
+                    <textarea rows={3} value={profile[field].join('\n')} onChange={e => { setProfile({ ...profile, [field]: e.target.value === '' ? [] : e.target.value.split('\n') }); setProfileSaved(false); }} className="neul-input mt-2" />
+                  </label>)}
+                  <div className="mt-7 flex items-center gap-3"><button disabled={saving} className="rounded-2xl bg-[#1F3A5F] px-6 py-3 font-bold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Save profile'}</button>{profileSaved && <span role="status" className="text-sm">Saved to your family</span>}</div>
+                </form> : <p className="rounded-3xl bg-white p-8">No parent profile has been set up. Ask your project administrator to add one.</p>}
+                <section className="rounded-[28px] border border-[#E3EAF3] bg-white p-6 sm:p-7">
+                  <Users size={24} /><h2 className="mt-4 text-xl font-bold">Care circle</h2>
+                  {!workspace.contacts.length && <p className="mt-4">No contacts configured.</p>}
+                  {workspace.contacts.map(contact => <div key={contact.contact_id} className="mt-4 rounded-2xl bg-[#F7F9FC] p-4"><p className="font-bold">{contact.display_name}</p><p className="mt-1 text-sm">{contact.priority === 1 ? 'Primary contact' : `Backup priority ${contact.priority}`} · {contact.phone_number}</p></div>)}
+                  <p className="mt-6 text-sm text-[#527391]">Only members of your family can read this workspace and edit its parent profiles.</p>
+                </section>
               </div>
             </div>
           )}
@@ -457,7 +392,18 @@ export default function Page() {
         </div>
       )}
 
-      {selectedCall && <CallDetailsModal call={selectedCall} onClose={() => setSelectedCall(null)} />}
+      {selectedCall && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#1C3454]/55 p-0 backdrop-blur-[3px] sm:items-center sm:p-5" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedCall(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="call-dialog-title" className="max-h-[92dvh] w-full max-w-[660px] overflow-y-auto rounded-t-[30px] bg-[#F7F9FC] p-6 shadow-2xl sm:rounded-[30px] sm:p-9">
+            <div className="mb-6 flex items-center justify-between"><span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#527391]"><Phone size={16}/> Call details</span><button autoFocus aria-label="Close call details" onClick={() => setSelectedCall(null)} className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF4FA] text-[#294B73] hover:bg-[#DFE9F5]"><X size={19}/></button></div>
+            <div className="flex flex-wrap items-start justify-between gap-3"><h2 id="call-dialog-title" className="max-w-[450px] text-[27px] font-bold leading-tight tracking-[-0.06em] text-[#1C3454]">{selectedCall.title}</h2><StatusChip tag={selectedCall.tag}/></div>
+            <div className="mt-5 flex flex-wrap gap-3 text-[11px] font-semibold text-[#7189A2]"><span className="inline-flex items-center gap-1.5"><CalendarDays size={14}/>{selectedCall.day}, {selectedCall.time}</span><span className="inline-flex items-center gap-1.5"><Clock3 size={14}/>{selectedCall.duration}</span><span>{selectedCall.summaryStatus}</span></div>
+            <div className="mt-7 rounded-[22px] bg-[#EFF4FA] p-5"><div className="mb-2 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#527391]"><Sparkles size={16}/> Call summary</div><p className="text-[13px] leading-7 text-[#294B73]">{selectedCall.summary}</p></div>
+            <p className="mt-8 border-t border-[#EFF4FA] pt-4 text-[11px] leading-5 text-[#7189A2]">Transcripts and billing data are not included in the caregiver call-detail contract.</p>
+          </section>
+        </div>
+      )}
+
     </div>
   );
 }
