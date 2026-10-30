@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Activity,
   Compass,
@@ -30,6 +30,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import ParentMode from "@/components/ParentMode";
+import CallDetailsModal from "@/components/CallDetailsModal";
+import NeulIntro from "@/components/NeulIntro";
+import FocusHome from "@/components/FocusHome";
 import NeulBrand from "@/components/NeulBrand";
 import LocationPanel from "@/components/LocationPanel";
 import type { LostSession } from "@/components/types";
@@ -222,12 +225,7 @@ function StatusChip({ tag }: { tag: CallTag }) {
 }
 
 function DemoNotice() {
-  return (
-    <div className="mb-7 flex items-start gap-3 rounded-2xl border border-[#e9e5d7] bg-[#f9f6ed] px-4 py-3 text-[12px] leading-[1.65] text-[#807a65] sm:items-center">
-      <Info size={16} className="mt-0.5 shrink-0 text-[#a89363] sm:mt-0" />
-      <span><strong className="text-[#786d51]">Demo preview.</strong> Calls and alerts use sample data. Location permission, if granted in Parent Mode, stays in this browser tab. No remote monitoring or emergency notifications are active.</span>
-    </div>
-  );
+  return <div className="mb-5 text-[12px] text-[#7189A2]">Prototype preview · sample data only.</div>;
 }
 
 export default function Page() {
@@ -240,9 +238,20 @@ export default function Page() {
   const [profile, setProfile] = useState<ParentProfile>(INITIAL_PROFILE);
   const [reviewedIds, setReviewedIds] = useState<string[]>(["alert-01"]);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [introPhase, setIntroPhase] = useState<"checking" | "show" | "done">("checking");
+
+  const enterApp = useCallback(() => {
+    try { sessionStorage.setItem("neul-intro-seen-v05", "yes"); } catch { /* storage optional */ }
+    setIntroPhase("done");
+  }, []);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("mode") === "parent") setMode("parent");
+    const isParent = new URLSearchParams(window.location.search).get("mode") === "parent";
+    if (isParent) { setMode("parent"); setIntroPhase("done"); return; }
+    try {
+      setIntroPhase(sessionStorage.getItem("neul-intro-seen-v05") === "yes" ? "done" : "show");
+    } catch { setIntroPhase("show"); }
   }, []);
 
   useEffect(() => {
@@ -273,6 +282,7 @@ export default function Page() {
   }), [filter, query]);
 
   function goTo(next: Tab) {
+    setCategoriesOpen(false);
     setTab(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -301,24 +311,14 @@ export default function Page() {
     setProfileSaved(true);
   }
 
-  const NavItem = ({ id, label, icon: Icon, mobile = false }: { id: Tab; label: string; icon: LucideIcon; mobile?: boolean }) => (
-    <button
-      type="button"
-      aria-current={tab === id ? "page" : undefined}
-      onClick={() => goTo(id)}
-      className={mobile
-        ? `relative flex min-h-[62px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-semibold transition ${tab === id ? "text-[#1F3A5F]" : "text-[#7189A2]"}`
-        : `flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left text-[14px] font-semibold transition ${tab === id ? "bg-[#E8EFF8] text-[#1F3A5F]" : "text-[#527391] hover:bg-[#EFF4FA] hover:text-[#294B73]"}`}
-    >
-      <Icon size={mobile ? 21 : 20} strokeWidth={tab === id ? 2.4 : 1.9} />
-      <span>{label}</span>
-      {id === "alerts" && pendingAlerts > 0 && (
-        <span className={mobile ? "absolute right-[28%] top-2 h-2 w-2 rounded-full bg-[#d88967]" : "ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e9a17e] px-1 text-[10px] font-bold text-white"}>
-          {!mobile ? pendingAlerts : ""}
-        </span>
-      )}
-    </button>
-  );
+  const categoryGroups: { title: string; ids: Tab[] }[] = [
+    { title: "Conversations", ids: ["calls"] },
+    { title: "Safety & support", ids: ["alerts", "location"] },
+    { title: "Your people", ids: ["profile"] },
+  ];
+
+  if (introPhase === "checking") return <div className="neul-intro-checking" aria-label="Opening Neul"><span>neul<span className="text-[#F5A623]">.</span></span></div>;
+  if (introPhase === "show") return <NeulIntro onEnter={enterApp} />;
 
   if (mode === "parent") {
     return <ParentMode parentName={profile.name.split(" ")[0] || profile.nickname} lostSession={lostSession} onLostUpdate={setLostSession} onCaregiverMode={returnToCaregiver} />;
@@ -328,26 +328,29 @@ export default function Page() {
     <div className="min-h-screen bg-[#F6F8FC] text-[#1F3A5F]">
       <aside className="neul-sidebar fixed inset-y-0 left-0 z-20 hidden w-[256px] flex-col border-r border-[#E4EAF2] bg-[#FFFFFF] px-5 py-8 lg:flex">
         <div className="px-3"><Brand /></div>
-        <div className="mt-14 mb-4 px-4 text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#7189A2]">Your space</div>
-        <nav aria-label="Desktop navigation" className="space-y-1.5">
-          {NAV.map((item) => <NavItem key={item.id} {...item} />)}
+        <div className="mt-14 mb-3 px-4 text-[12px] font-medium text-[#708299]">Menu</div>
+        <nav aria-label="Desktop navigation" className="space-y-2">
+          <button onClick={() => goTo("home")} className={`neul-nav-pill ${tab === "home" ? "neul-nav-pill-active" : ""}`} type="button"><LayoutDashboard size={19}/><span>Home</span>{tab === "home" && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#F5A623]"/>}</button>
+          <button onClick={() => setCategoriesOpen(true)} className={`neul-nav-pill ${tab !== "home" ? "neul-nav-pill-active" : ""}`} type="button"><Compass size={19}/><span>Categories</span><ChevronRight size={17} className="ml-auto"/></button>
         </nav>
+        {tab !== "home" && <div className="mt-4 rounded-2xl border border-[#E3EAF3] bg-[#F6F8FC] px-4 py-3 text-[12px] font-semibold text-[#527391]">Viewing: <span className="text-[#1F3A5F]">{NAV.find((item) => item.id === tab)?.label}</span></div>}
         <div className="neul-side-quote mt-auto rounded-[24px] bg-[#EAF0F7] px-5 py-6">
           <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/70 text-[#527391]"><Heart size={20} /></div>
-          <p className="text-[15px] font-bold leading-6 tracking-[-0.03em] text-[#294B73]">Always there<br />to answer.</p>
-          <p className="mt-2 text-[11px] leading-5 text-[#527391]">A familiar voice. A little more peace of mind.</p>
+          <p className="text-[14px] font-semibold leading-6 tracking-[-0.02em] text-[#294B73]">Start here.</p>
+          <p className="mt-2 text-[12px] leading-5 text-[#527391]">Home shows the latest summary first.</p>
         </div>
         <button type="button" onClick={enterParentMode} className="mt-5 flex min-h-[49px] w-full items-center justify-between rounded-2xl border border-[#EFF4FA] bg-white px-4 text-[13px] font-bold text-[#294B73] hover:bg-[#EFF4FA]"><span className="inline-flex items-center gap-2"><ArrowLeftRight size={17}/> Parent Mode</span><ChevronRight size={17}/></button>
-        <p className="mt-4 px-4 text-[11px] text-[#7189A2]">Neul · Brand preview v0.3</p>
+        <p className="mt-4 px-4 text-[11px] text-[#7189A2]">Neul · Preview</p>
       </aside>
 
       <div className="lg:ml-[256px]">
         <header className="sticky top-0 z-10 border-b border-[#EFF4FA] bg-[#F6F8FC]/95 backdrop-blur-xl">
           <div className="mx-auto flex max-w-[1240px] items-center justify-between px-5 py-4 sm:px-9 lg:px-12 lg:py-5">
             <div className="lg:hidden"><Brand /></div>
-            <div className="hidden items-center gap-2 text-[13px] font-semibold text-[#7189A2] lg:flex"><span>Caregiver workspace</span><ChevronRight size={14} /><span className="text-[#294B73]">{NAV.find((n) => n.id === tab)?.label}</span></div>
+            <div className="hidden items-center gap-2 text-[13px] font-semibold text-[#7189A2] lg:flex"><span>Caregiver</span><ChevronRight size={14} /><span className="text-[#294B73]">{NAV.find((n) => n.id === tab)?.label}</span></div>
             <div className="flex items-center gap-3">
-              <span className="hidden items-center gap-2 rounded-full border border-[#EFF4FA] bg-white px-3 py-2 text-[11px] font-semibold text-[#527391] sm:inline-flex"><span className="h-2 w-2 rounded-full bg-[#F5A623]" /> Sample data</span>
+              <button onClick={() => setIntroPhase("show")} type="button" className="hidden items-center gap-2 rounded-full border border-[#EFF4FA] bg-white px-3 py-2 text-[11px] font-semibold text-[#527391] transition hover:bg-[#EEF3F9] sm:inline-flex"><Sparkles size={13} className="text-[#D69B40]" /> Replay intro</button>
+              <button onClick={() => setCategoriesOpen(true)} type="button" className="inline-flex items-center gap-1.5 rounded-full border border-[#E5EBF3] bg-white px-3 py-2 text-[11px] font-semibold text-[#294B73] transition hover:bg-[#EEF3F9] lg:hidden"><Compass size={15}/> Categories</button>
               <button type="button" onClick={enterParentMode} className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-[#E8EFF8] px-3 text-[11px] font-bold text-[#1F3A5F] transition hover:bg-[#DFE9F5] sm:px-4 sm:text-[12px]"><ArrowLeftRight size={15}/><span className="hidden min-[360px]:inline">Parent Mode</span><span className="min-[360px]:hidden">Parent</span></button>
               <div className="hidden h-10 w-10 items-center justify-center rounded-full bg-[#F4E3C3] text-[12px] font-extrabold text-[#665235] sm:flex" aria-label="Demo caregiver Alex">AX</div>
             </div>
@@ -355,71 +358,28 @@ export default function Page() {
         </header>
 
         <main className="mx-auto max-w-[1240px] px-5 pb-32 pt-7 sm:px-9 sm:pt-10 lg:px-12 lg:pb-16">
-          <DemoNotice />
+          {tab !== "home" && <DemoNotice />}
 
           {tab === "home" && (
-            <div className="space-y-9">
-              <div>
-                <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#527391]"><Sparkles size={14} /> Your daily peace of mind</div>
-                <h1 className="max-w-[750px] text-[36px] font-bold leading-[1.13] tracking-[-0.065em] text-[#1F3A5F] sm:text-[49px]">A little closer,<br /><span className="font-medium italic text-[#6FA8C7]">even from afar.</span></h1>
-                <p className="mt-4 max-w-[580px] text-[14px] leading-7 text-[#527391] sm:text-[15px]">A thoughtful snapshot of {profile.nickname}&apos;s day, the conversations you missed, and moments worth checking in on.</p>
-              </div>
-
-              <div className="grid gap-5 xl:grid-cols-[1.55fr_1fr]">
-                <section className="neul-navy-hero relative min-h-[300px] overflow-hidden rounded-[30px] p-7 text-white shadow-[0_20px_55px_-35px_rgba(31,58,95,.44)] sm:p-9">
-                  <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-20 h-[290px] w-[290px] rounded-full border-[42px] border-white/[0.055]" />
-                  <div aria-hidden="true" className="pointer-events-none absolute -bottom-32 right-12 h-[280px] w-[280px] rounded-full border-[35px] border-white/[0.06]" />
-                  <div className="relative z-[1] flex h-full flex-col justify-between gap-10">
-                    <div className="flex items-center justify-between gap-3"><span className="rounded-full bg-white/15 px-3 py-2 text-[11px] font-bold tracking-wide text-[#F3F8FF]">{profile.nickname}&apos;s wellbeing</span><span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[#ffffff20] bg-[#ffffff15] text-[#F5BE51]"><Heart size={22}/></span></div>
-                    <div>
-                      <div className="mb-4 flex h-13 w-13 items-center justify-center rounded-2xl bg-[#F9E5BA] text-[#1F3A5F]"><Check size={26} strokeWidth={3} /></div>
-                      <h2 className="text-[30px] font-bold leading-tight tracking-[-0.055em] sm:text-[36px]">{lostSession ? "Lost Mode demo in progress." : "All seems calm today."}</h2>
-                      <p className="mt-3 max-w-[370px] text-[13px] leading-6 text-[#D9E6F4]">{lostSession ? "This is a local test only; no alert was sent. Open Location to preview the details." : "A calm sample overview of the day. One conversation follow-up is waiting for you."}</p>
-                    </div>
-                    <div className="flex items-center gap-2 border-t border-white/20 pt-5 text-[12px] text-[#C8D9E8]"><Clock3 size={16} /> Last sample call · Today at 10:42 AM</div>
-                  </div>
-                </section>
-
-                <section className="flex flex-col justify-between rounded-[30px] border border-[#E3EAF3] bg-white p-7 sm:p-8">
-                  <div className="flex items-center justify-between"><p className="text-[12px] font-bold uppercase tracking-[0.13em] text-[#7189A2]">At a glance</p><Activity size={19} className="text-[#6FA8C7]" /></div>
-                  <div className="mt-7 grid grid-cols-2 gap-4">
-                    <div className="rounded-[22px] bg-[#F0F4FA] p-5"><p className="text-[34px] font-bold tracking-[-0.07em] text-[#294B73]">10</p><p className="mt-1 text-[12px] text-[#7189A2]">Sample calls</p></div>
-                    <div className="rounded-[22px] bg-[#FFF5E4] p-5"><p className="text-[34px] font-bold tracking-[-0.07em] text-[#A46F13]">{pendingAlerts}</p><p className="mt-1 text-[12px] text-[#a79a83]">To review</p></div>
-                  </div>
-                  <div className="mt-6 flex items-center gap-3 rounded-2xl border border-[#EFF4FA] p-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF4FA] text-[#527391]"><ShieldCheck size={20} /></div><div><p className="text-[13px] font-bold text-[#294B73]">Family care, made simpler</p><p className="mt-1 text-[11px] text-[#7189A2]">Your daily overview in one place</p></div></div>
-                </section>
-              </div>
-
-              <div className="grid gap-8 xl:grid-cols-[1.55fr_1fr]">
-                <section>
-                  <SectionHeading eyebrow="Moments from the day" title="Recent conversations" action={<button onClick={() => goTo("calls")} className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#527391] hover:text-[#1C3454]">View all <ArrowRight size={15} /></button>} />
-                  <div className="overflow-hidden rounded-[26px] border border-[#E3EAF3] bg-white">
-                    {CALLS.slice(0, 3).map((call, index) => (
-                      <button key={call.id} onClick={() => setSelectedCall(call)} className={`flex w-full items-start gap-4 p-5 text-left transition hover:bg-[#F7F9FD] sm:p-6 ${index !== 0 ? "border-t border-[#EFF4FA]" : ""}`}>
-                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${call.tag === "Flagged" ? "bg-[#fff1e9] text-[#b77459]" : "bg-[#EFF4FA] text-[#527391]"}`}><MessageCircle size={21} /></div>
-                        <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-[14px] font-bold text-[#294B73]">{call.title}</h3><StatusChip tag={call.tag} /></div><p className="mt-2 line-clamp-2 text-[12px] leading-6 text-[#7189A2]">{call.summary}</p><p className="mt-2.5 flex items-center gap-1.5 text-[11px] text-[#7189A2]"><Clock3 size={13} /> {call.day} · {call.time} · {call.duration}</p></div>
-                        <ChevronRight size={17} className="mt-1 shrink-0 text-[#A8BBD0]" />
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
-                <section>
-                  <SectionHeading eyebrow="A small nudge" title="Worth a check-in" />
-                  <div className="rounded-[26px] border border-[#f1eadc] bg-[#fdf9f0] p-6 sm:p-7">
-                    <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f5e8ca] text-[#a57e3d]"><Bell size={22} /></div>
-                    <h3 className="text-[18px] font-bold tracking-[-0.045em] text-[#655c43]">A quick confirmation could help.</h3>
-                    <p className="mt-3 text-[13px] leading-7 text-[#8b8069]">{profile.nickname} asked about an appointment earlier today. You might want to confirm the details together.</p>
-                    <button onClick={() => setSelectedCall(CALLS[1])} className="mt-6 inline-flex items-center gap-2 text-[13px] font-bold text-[#9b743c] hover:text-[#684d2b]">Read the conversation <ArrowUpRight size={17} /></button>
-                  </div>
-                </section>
-              </div>
-            </div>
+            <FocusHome
+              nickname={profile.nickname}
+              parentName={profile.name}
+              summary={CALLS[0].summary}
+              title={CALLS[0].title}
+              callTime={`${CALLS[0].day} · ${CALLS[0].time} · ${CALLS[0].duration}`}
+              pendingAlerts={pendingAlerts}
+              isLost={Boolean(lostSession)}
+              onOpenCall={() => setSelectedCall(CALLS[0])}
+              onCategories={() => setCategoriesOpen(true)}
+              onLocation={() => goTo("location")}
+              lostSession={lostSession}
+              onParentMode={enterParentMode}
+            />
           )}
 
           {tab === "calls" && (
             <div>
-              <div className="mb-8"><p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#527391]">Conversations</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#1F3A5F] sm:text-[46px]">Every little moment.</h1><p className="mt-3 text-[14px] leading-7 text-[#527391]">Browse ten sample call summaries and open a conversation to read the transcript, duration, and estimated cost.</p></div>
+              <div className="mb-8"><p className="mb-3 text-[12px] font-medium text-[#7189A2]">Calls</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#1F3A5F] sm:text-[46px]">Call history</h1><p className="mt-3 text-[14px] leading-7 text-[#527391]">Browse ten sample call summaries and open a conversation to read the transcript, duration, and estimated cost.</p></div>
               <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-h-[50px] max-w-[440px] flex-1 items-center gap-3 rounded-2xl border border-[#EFF4FA] bg-white px-4"><Search size={19} className="text-[#7189A2]"/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search conversations" aria-label="Search conversations" className="w-full border-0 bg-transparent py-3 text-[13px] text-[#294B73] outline-none placeholder:text-[#7189A2]" /></div>
                 <div aria-label="Filter calls" className="flex flex-wrap gap-2">{(["All", "Follow-up", "Flagged"] as const).map((label) => <button type="button" key={label} onClick={() => setFilter(label)} className={`rounded-full px-4 py-2.5 text-[12px] font-bold transition ${filter === label ? "bg-[#1F3A5F] text-white" : "border border-[#EFF4FA] bg-white text-[#7189A2] hover:text-[#294B73]"}`}>{label}</button>)}</div>
@@ -438,7 +398,7 @@ export default function Page() {
 
           {tab === "alerts" && (
             <div>
-              <div className="mb-8"><p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#527391]">Your notifications</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#1F3A5F] sm:text-[46px]">Here when it matters.</h1><p className="mt-3 text-[14px] leading-7 text-[#527391]">An organized view of situations that may deserve a little extra attention.</p></div>
+              <div className="mb-8"><p className="mb-3 text-[12px] font-medium text-[#7189A2]">Notifications</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#1F3A5F] sm:text-[46px]">Alerts</h1><p className="mt-3 text-[14px] leading-7 text-[#527391]">An organized view of situations that may deserve a little extra attention.</p></div>
               <div className="mb-7 flex items-center gap-4 rounded-[26px] border border-[#EFF4FA] bg-white p-5 sm:p-7"><div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-[#EFF4FA] text-[#527391]"><ShieldCheck size={24}/></div><div><h2 className="text-[16px] font-bold text-[#294B73]">{lostSession ? "Lost Mode preview in this browser" : "No active emergencies in this demo"}</h2><p className="mt-1 text-[12px] leading-6 text-[#7189A2]">{lostSession ? "A Parent Mode demo was started on this device; no SMS, calls or push alerts were delivered." : `${pendingAlerts} sample ${pendingAlerts === 1 ? "item needs" : "items need"} review. Real SMS, calls and push delivery are not yet connected.`}</p></div></div>
               {lostSession && <div className="mb-7 flex flex-col gap-4 rounded-[24px] border border-[#f1d8c3] bg-[#fff8ed] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"><div className="flex items-start gap-3"><MapPin className="mt-1 shrink-0 text-[#b47752]" size={23}/><div><p className="text-[15px] font-bold text-[#865f43]">Parent selected “I'm lost”</p><p className="mt-1 text-[12px] leading-6 text-[#947965]">Demo event only · {lostSession.status === "located" ? "Device position available in this tab" : "Location unavailable or pending"} · not delivered</p></div></div><button type="button" onClick={() => goTo("location")} className="min-h-[46px] shrink-0 rounded-2xl bg-[#e8d1bd] px-5 text-[13px] font-bold text-[#77553e]">View location preview <ArrowRight className="ml-1 inline" size={16}/></button></div>}
               <SectionHeading title="Alert history" eyebrow="Sample events" />
@@ -461,7 +421,7 @@ export default function Page() {
 
           {tab === "profile" && (
             <div>
-              <div className="mb-8"><p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#527391]">People first</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#1F3A5F] sm:text-[46px]">The person behind<br className="sm:hidden" /> every call.</h1><p className="mt-3 text-[14px] leading-7 text-[#527391]">Help Neul feel familiar by keeping a few personal details close at hand.</p></div>
+              <div className="mb-8"><p className="mb-3 text-[12px] font-medium text-[#7189A2]">Family</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#1F3A5F] sm:text-[46px]">Mom&apos;s profile</h1><p className="mt-3 text-[14px] leading-7 text-[#527391]">Help Neul feel familiar by keeping a few personal details close at hand.</p></div>
               <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
                 <form onSubmit={(event) => { event.preventDefault(); saveProfile(); }} className="rounded-[28px] border border-[#E3EAF3] bg-white p-6 sm:p-8">
                   <div className="mb-7 flex items-center gap-4"><div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-[#EFF4FA] text-[26px] font-bold text-[#527391]">GK</div><div><p className="text-[18px] font-bold tracking-[-0.04em] text-[#1C3454]">{profile.name || "Sample parent"}</p><p className="mt-1 text-[12px] text-[#7189A2]">Parent profile · Demo data</p></div></div>
@@ -478,22 +438,26 @@ export default function Page() {
         </main>
       </div>
 
-      <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-30 border-t border-[#EFF4FA] bg-white/95 px-3 pb-[max(env(safe-area-inset-bottom),8px)] pt-2 shadow-[0_-10px_30px_rgba(36,68,47,.045)] backdrop-blur-xl lg:hidden">
-        <div className="mx-auto flex max-w-[520px] items-center justify-around">{NAV.map((item) => <NavItem key={item.id} {...item} mobile />)}</div>
+      <nav aria-label="Mobile navigation" className="neul-mobile-nav lg:hidden">
+        <button type="button" aria-current={tab === "home" ? "page" : undefined} className={tab === "home" ? "neul-mobile-active" : ""} onClick={() => goTo("home")}><LayoutDashboard size={21}/><span>Home</span></button>
+        <button type="button" className={tab !== "home" ? "neul-mobile-active" : ""} onClick={() => setCategoriesOpen(true)}><Compass size={21}/><span>Categories</span></button>
+        <button type="button" onClick={enterParentMode}><Heart size={21}/><span>Parent Mode</span></button>
       </nav>
 
-      {selectedCall && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#1C3454]/55 p-0 backdrop-blur-[3px] sm:items-center sm:p-5" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedCall(null); }}>
-          <section role="dialog" aria-modal="true" aria-labelledby="call-dialog-title" className="max-h-[92dvh] w-full max-w-[660px] overflow-y-auto rounded-t-[30px] bg-[#F7F9FC] p-6 shadow-2xl sm:rounded-[30px] sm:p-9">
-            <div className="mb-6 flex items-center justify-between"><span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#527391]"><Phone size={16}/> Call details</span><button autoFocus aria-label="Close call details" onClick={() => setSelectedCall(null)} className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EFF4FA] text-[#294B73] hover:bg-[#DFE9F5]"><X size={19}/></button></div>
-            <div className="flex flex-wrap items-start justify-between gap-3"><h2 id="call-dialog-title" className="max-w-[450px] text-[27px] font-bold leading-tight tracking-[-0.06em] text-[#1C3454]">{selectedCall.title}</h2><StatusChip tag={selectedCall.tag}/></div>
-            <div className="mt-5 flex flex-wrap gap-3 text-[11px] font-semibold text-[#7189A2]"><span className="inline-flex items-center gap-1.5"><CalendarDays size={14}/>{selectedCall.day}, {selectedCall.time}</span><span className="inline-flex items-center gap-1.5"><Clock3 size={14}/>{selectedCall.duration}</span><span>{selectedCall.cost} est. cost</span></div>
-            <div className="mt-7 rounded-[22px] bg-[#EFF4FA] p-5"><div className="mb-2 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#527391]"><Sparkles size={16}/> AI-generated sample summary</div><p className="text-[13px] leading-7 text-[#294B73]">{selectedCall.summary}</p></div>
-            <h3 className="mt-8 mb-4 text-[16px] font-bold tracking-[-0.04em] text-[#294B73]">Conversation transcript</h3><div className="space-y-4">{selectedCall.transcript.map((line, index) => <div key={index} className={`flex gap-3 ${line.speaker === "Mom" ? "flex-row-reverse" : ""}`}><div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${line.speaker === "Mom" ? "bg-[#f2e6d8] text-[#a77e5d]" : "bg-[#EFF4FA] text-[#527391]"}`}>{line.speaker === "Mom" ? "M" : "N"}</div><div className={`max-w-[80%] rounded-[19px] px-4 py-3 text-[12px] leading-6 ${line.speaker === "Mom" ? "bg-[#f6eee6] text-[#77675b]" : "bg-white text-[#527391] shadow-[0_2px_14px_rgba(20,50,30,.035)]"}`}><p className="mb-1 text-[10px] font-bold opacity-60">{line.speaker}</p>{line.text}</div></div>)}</div>
-            <p className="mt-8 border-t border-[#EFF4FA] pt-4 text-[11px] leading-5 text-[#7189A2]">Illustrative transcript and pricing for prototype testing. Not a real recorded phone call.</p>
+      {categoriesOpen && (
+        <div className="neul-categories-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setCategoriesOpen(false); }}>
+          <section className="neul-categories-sheet" role="dialog" aria-modal="true" aria-labelledby="neul-categories-title">
+            <div className="neul-categories-head"><div><span className="neul-drawer-kicker">Neul</span><h2 id="neul-categories-title">Explore categories</h2></div><button type="button" onClick={() => setCategoriesOpen(false)} aria-label="Close categories"><X size={22}/></button></div>
+            <div className="neul-categories-groups">
+              {categoryGroups.map((group) => <div key={group.title}><p className="neul-categories-group-title">{group.title}</p><div className="neul-categories-group-items">{group.ids.map((id) => { const item = NAV.find((nav) => nav.id === id)!; const Icon = item.icon; const detail: Record<string, string> = { calls: "Past calls & AI summaries", alerts: "Updates worth reviewing", location: "Lost Mode & location preview", profile: "Mom's details & preferences" }; return <button key={id} type="button" onClick={() => goTo(id)} className="neul-category-item"><span className="neul-category-icon"><Icon size={22}/></span><span className="neul-category-text"><strong>{item.label}</strong><small>{detail[id]}</small></span>{id === "alerts" && pendingAlerts > 0 && <span className="neul-category-count">{pendingAlerts}</span>}<ArrowRight size={19} className="neul-category-chevron"/></button>; })}</div></div>)}
+            </div>
+            <button type="button" className="neul-drawer-parent" onClick={() => { setCategoriesOpen(false); enterParentMode(); }}><ArrowLeftRight size={18}/> Switch to Parent Mode <ArrowRight size={17}/></button>
+            <p className="neul-drawer-foot">Neul UI demonstration · Not a live care monitoring service.</p>
           </section>
         </div>
       )}
+
+      {selectedCall && <CallDetailsModal call={selectedCall} onClose={() => setSelectedCall(null)} />}
     </div>
   );
 }
