@@ -57,9 +57,10 @@ await retell(`/update-retell-llm/${llmId}`, {
         "Alert {{caregiver_name}} about a safety worry: a fall, injury, pain, feeling unwell, wanting to leave the house, or being lost.",
       url: `${brainUrl}/retell/alert`,
       method: "POST",
-      // The agent has already said it's letting {{caregiver_name}} know; no filler while this runs.
+      // The agent says it's letting {{caregiver_name}} know before the tool runs, so it stays
+      // quiet while it runs and after (speaking after made it repeat itself on real calls).
       speak_during_execution: false,
-      speak_after_execution: true,
+      speak_after_execution: false,
       timeout_ms: 8000,
       max_retry: 1,
       parameters: {
