@@ -35,6 +35,10 @@ import type { LostSession } from "@/components/types";
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import AuthGate from '@/components/auth/AuthGate';
 import { CALL_FIELDS, PAGE_SIZE, loadWorkspace, toCall, type CallDetail, type CallRecord, type Family, type Parent, type Workspace } from '@/lib/caregiver';
+import { clearLocation, fetchLocation, pushLocation, type LocationPoint } from '@/lib/demoLocation';
+
+const LOCATION_POLL_MS = 4000;
+const LOCATION_PUSH_MIN_MS = 3000;
 
 type Tab = "home" | "calls" | "alerts" | "location" | "profile";
 type CallTag = CallRecord["tag"];
@@ -75,7 +79,7 @@ function StatusChip({ tag }: { tag: CallTag }) {
 function DemoNotice() {
   return (
     <p className="mb-5 text-[12px] leading-6 text-[#75869B]">
-      Development preview · Calls and profiles come from the family workspace. Parent Mode location stays in this browser; no emergency messages are sent.
+      Development preview · Calls and profiles come from the family workspace. Parent Mode location is shared with this family workspace (demo); no emergency messages are sent.
     </p>
   );
 }
@@ -140,6 +144,50 @@ function Dashboard({ client, session }: { client: SupabaseClient; session: Sessi
     });
     return () => { active = false; };
   }, [client, refresh]);
+
+  // DEMO location sync: Parent Mode uploads each GPS fix; Caregiver Mode polls the latest one.
+  const familyId = workspace?.family.family_id;
+  const lastPush = useRef(0);
+  const fromRemote = useRef(false);
+  const [syncNote, setSyncNote] = useState("");
+
+  const sharePosition = useCallback((point: LocationPoint) => {
+    if (!familyId) return;
+    const now = Date.now();
+    if (now - lastPush.current < LOCATION_PUSH_MIN_MS) return;
+    lastPush.current = now;
+    void pushLocation(client, familyId, point).then((message) => {
+      setSyncNote(message
+        ? `Could not share location: ${message}`
+        : `Shared with your family at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}`);
+    });
+  }, [client, familyId]);
+
+  const clearSharedPosition = useCallback(() => {
+    lastPush.current = 0;
+    setSyncNote("");
+    if (familyId) void clearLocation(client, familyId);
+  }, [client, familyId]);
+
+  useEffect(() => {
+    if (mode !== "caregiver" || !familyId) return;
+    let active = true;
+    const poll = async () => {
+      const { data, error } = await fetchLocation(client, familyId);
+      if (!active || error) return;
+      if (data) {
+        fromRemote.current = true;
+        setLostSession((prev) => prev && prev.status === "located" && prev.updatedAt >= data.updatedAt ? prev : { ...data, clue: prev?.clue });
+      } else if (fromRemote.current) {
+        // The parent tapped "I'm safe now" (or the point expired).
+        fromRemote.current = false;
+        setLostSession(null);
+      }
+    };
+    void poll();
+    const timer = window.setInterval(() => void poll(), LOCATION_POLL_MS);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [client, familyId, mode]);
 
   async function signOut() {
     const { error } = await client.auth.signOut();
@@ -235,7 +283,7 @@ function Dashboard({ client, session }: { client: SupabaseClient; session: Sessi
   </main>;
 
   if (mode === "parent") {
-    return <ParentMode parentName={profile?.preferred_name ?? "Parent"} lostSession={lostSession} onLostUpdate={setLostSession} onCaregiverMode={returnToCaregiver} />;
+    return <ParentMode parentName={profile?.preferred_name ?? "Parent"} lostSession={lostSession} onLostUpdate={setLostSession} onCaregiverMode={returnToCaregiver} onPosition={sharePosition} onSafe={clearSharedPosition} syncNote={syncNote} />;
   }
 
   return (
@@ -324,8 +372,8 @@ function Dashboard({ client, session }: { client: SupabaseClient; session: Sessi
           {tab === "alerts" && (
             <div>
               <div className="mb-8"><p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-[#527391]">Your notifications</p><h1 className="text-[36px] font-bold tracking-[-0.065em] text-[#1F3A5F] sm:text-[46px]">Here when it matters.</h1><p className="mt-3 text-[14px] leading-7 text-[#527391]">An organized view of situations that may deserve a little extra attention.</p></div>
-              <div className="mb-7 flex items-center gap-4 rounded-[26px] border border-[#EFF4FA] bg-white p-5 sm:p-7"><div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-[#EFF4FA] text-[#527391]"><ShieldCheck size={24}/></div><div><h2 className="text-[16px] font-bold text-[#294B73]">{lostSession ? "Lost Mode preview in this browser" : "Family alerts"}</h2><p className="mt-1 text-[12px] leading-6 text-[#7189A2]">{lostSession ? "A Parent Mode demo was started on this device; no SMS, calls or push alerts were delivered." : `${pendingAlerts} ${pendingAlerts === 1 ? "item needs" : "items need"} review. Real SMS, calls and push delivery are not yet connected.`}</p></div></div>
-              {lostSession && <div className="mb-7 flex flex-col gap-4 rounded-[24px] border border-[#f1d8c3] bg-[#fff8ed] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"><div className="flex items-start gap-3"><MapPin className="mt-1 shrink-0 text-[#b47752]" size={23}/><div><p className="text-[15px] font-bold text-[#865f43]">Parent selected “I&apos;m lost”</p><p className="mt-1 text-[12px] leading-6 text-[#947965]">Demo event only · {lostSession.status === "located" ? "Device position available in this tab" : "Location unavailable or pending"} · not delivered</p></div></div><button type="button" onClick={() => goTo("location")} className="min-h-[46px] shrink-0 rounded-2xl bg-[#e8d1bd] px-5 text-[13px] font-bold text-[#77553e]">View location preview <ArrowRight className="ml-1 inline" size={16}/></button></div>}
+              <div className="mb-7 flex items-center gap-4 rounded-[26px] border border-[#EFF4FA] bg-white p-5 sm:p-7"><div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-[#EFF4FA] text-[#527391]"><ShieldCheck size={24}/></div><div><h2 className="text-[16px] font-bold text-[#294B73]">{lostSession ? "Lost Mode demo" : "Family alerts"}</h2><p className="mt-1 text-[12px] leading-6 text-[#7189A2]">{lostSession ? "A Parent Mode demo location was received; no SMS, calls or push alerts were delivered." : `${pendingAlerts} ${pendingAlerts === 1 ? "item needs" : "items need"} review. Real SMS, calls and push delivery are not yet connected.`}</p></div></div>
+              {lostSession && <div className="mb-7 flex flex-col gap-4 rounded-[24px] border border-[#f1d8c3] bg-[#fff8ed] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"><div className="flex items-start gap-3"><MapPin className="mt-1 shrink-0 text-[#b47752]" size={23}/><div><p className="text-[15px] font-bold text-[#865f43]">Parent selected “I&apos;m lost”</p><p className="mt-1 text-[12px] leading-6 text-[#947965]">Demo event only · {lostSession.status === "located" ? "Device position available" : "Location unavailable or pending"} · not delivered</p></div></div><button type="button" onClick={() => goTo("location")} className="min-h-[46px] shrink-0 rounded-2xl bg-[#e8d1bd] px-5 text-[13px] font-bold text-[#77553e]">View location preview <ArrowRight className="ml-1 inline" size={16}/></button></div>}
               <SectionHeading title="Alert history" eyebrow="Stored events" />
               <div className="space-y-4">
                 {!ALERTS.length && <p className="p-6 text-sm">No alerts yet.</p>}
