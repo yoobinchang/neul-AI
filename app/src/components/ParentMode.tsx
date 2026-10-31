@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { ArrowLeft, Check, LocateFixed, MapPin, RefreshCcw, ShieldCheck, Radio } from "lucide-react";
 import type { LostSession } from "./types";
 import NeulBrand from "./NeulBrand";
@@ -8,39 +8,54 @@ import NeulBrand from "./NeulBrand";
 type Props = {
   parentName: string;
   lostSession: LostSession | null;
-  onLostUpdate: (next: LostSession | null) => void;
+  onLostUpdate: Dispatch<SetStateAction<LostSession | null>>;
   onCaregiverMode: () => void;
+  // DEMO: called with every GPS fix so the page can share it with the family workspace.
+  onPosition?: (point: { latitude: number; longitude: number; accuracy: number }) => void;
+  onSafe?: () => void;
+  syncNote?: string;
 };
 
-export default function ParentMode({ parentName, lostSession, onLostUpdate, onCaregiverMode }: Props) {
+export default function ParentMode({ parentName, lostSession, onLostUpdate, onCaregiverMode, onPosition, onSafe, syncNote }: Props) {
   const locationRequestId = useRef(0);
+  const watchId = useRef<number | null>(null);
+  const hasFix = useRef(false);
 
   const locating = lostSession?.status === "requesting";
   const located = lostSession?.status === "located";
 
+  const stopWatching = useCallback(() => {
+    if (watchId.current !== null) {
+      navigator.geolocation.clearWatch(watchId.current);
+      watchId.current = null;
+    }
+  }, []);
+  useEffect(() => stopWatching, [stopWatching]);
+
   function requestHelpLocation() {
+    stopWatching();
+    hasFix.current = false;
     const requestId = ++locationRequestId.current;
     onLostUpdate({ status: "requesting", updatedAt: Date.now(), clue: lostSession?.clue });
     if (!("geolocation" in navigator)) {
       onLostUpdate({ status: "unavailable", updatedAt: Date.now(), clue: lostSession?.clue });
       return;
     }
-    navigator.geolocation.getCurrentPosition(
+    // Keep watching while this screen is open so the caregiver's map follows the phone.
+    watchId.current = navigator.geolocation.watchPosition(
       (position) => {
         if (locationRequestId.current !== requestId) return;
-        onLostUpdate({
-          status: "located",
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          updatedAt: Date.now(),
-          clue: lostSession?.clue,
-        });
+        hasFix.current = true;
+        const { latitude, longitude, accuracy } = position.coords;
+        onLostUpdate((prev) => ({ ...prev, status: "located", latitude, longitude, accuracy, updatedAt: Date.now() }));
+        onPosition?.({ latitude, longitude, accuracy });
       },
-      () => {
-        if (locationRequestId.current === requestId) {
-          onLostUpdate({ status: "unavailable", updatedAt: Date.now(), clue: lostSession?.clue });
-        }
+      (error) => {
+        if (locationRequestId.current !== requestId) return;
+        // A single timeout after we already have a fix is not worth discarding it.
+        if (hasFix.current && error.code !== error.PERMISSION_DENIED) return;
+        stopWatching();
+        onLostUpdate((prev) => ({ status: "unavailable", updatedAt: Date.now(), clue: prev?.clue }));
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
@@ -90,7 +105,7 @@ export default function ParentMode({ parentName, lostSession, onLostUpdate, onCa
             <div className="neul-demo-incident-banner" role="status">
               <span className="neul-demo-beacon-dot" aria-hidden="true" />
               <Radio size={18} aria-hidden="true" />
-              <span><strong>Lost Mode preview active</strong><small>Local to this browser · no notification sent</small></span>
+              <span><strong>Lost Mode preview active</strong><small>Location shared with your family workspace · no SMS or call sent</small></span>
             </div>
             <h1 className="text-[clamp(2.4rem,5vw,4rem)] font-semibold leading-[1] tracking-[-0.07em] text-[#173252]">Let’s find a safe place.</h1>
             <p className="mt-4 max-w-[560px] text-[17px] leading-8 text-[#607B96]">This is a demo. No alert has been sent. Please contact a trusted person directly if you need help.</p>
@@ -114,8 +129,9 @@ export default function ParentMode({ parentName, lostSession, onLostUpdate, onCa
               </ol>
 
               <div className="mt-6 rounded-[20px] bg-[#F7FAFD] px-5 py-4 text-[14px] leading-7 text-[#607B96]">
-                <div className="flex items-center gap-2 font-semibold text-[#173252]"><LocateFixed size={18} /> {located ? "Location saved on this device" : "Waiting for browser location"}</div>
+                <div className="flex items-center gap-2 font-semibold text-[#173252]"><LocateFixed size={18} /> {located ? "Location found" : "Waiting for browser location"}</div>
                 <p className="mt-2">{located ? `Accuracy: ± ${Math.round(lostSession?.accuracy ?? 0)} m.` : "If your browser asks for location permission, please allow it."}</p>
+                {located && syncNote && <p className="mt-1 text-[13px]" role="status">{syncNote}</p>}
               </div>
 
               <label htmlFor="clue" className="mt-6 block text-[14px] font-semibold text-[#173252]">What do you see? (optional)</label>
@@ -131,7 +147,7 @@ export default function ParentMode({ parentName, lostSession, onLostUpdate, onCa
                 <button type="button" onClick={requestHelpLocation} disabled={locating} className="flex min-h-[60px] items-center justify-center gap-2 rounded-2xl bg-[#C83B49] px-5 text-[16px] font-semibold text-white transition hover:bg-[#AB2D3B] disabled:opacity-60">
                   <RefreshCcw size={18} /> Try again
                 </button>
-                <button type="button" onClick={() => { locationRequestId.current += 1; onLostUpdate(null); }} className="flex min-h-[60px] items-center justify-center gap-2 rounded-2xl border border-[#E3EAF2] bg-white px-5 text-[16px] font-semibold text-[#173252]">
+                <button type="button" onClick={() => { locationRequestId.current += 1; stopWatching(); onLostUpdate(null); onSafe?.(); }} className="flex min-h-[60px] items-center justify-center gap-2 rounded-2xl border border-[#E3EAF2] bg-white px-5 text-[16px] font-semibold text-[#173252]">
                   <Check size={18} /> I&apos;m safe now
                 </button>
               </div>

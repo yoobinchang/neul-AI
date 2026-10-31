@@ -53,7 +53,7 @@ export default function LocationPanel({ lostSession, onParentMode }: Props) {
           <span className="neul-demo-beacon-dot" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <strong className="block text-[15px]">Lost Mode preview active</strong>
-            <span className="block text-[12px] leading-6">Location was requested in Parent Mode on this device. No remote emergency notification was sent.</span>
+            <span className="block text-[12px] leading-6">Location was shared from Parent Mode. No SMS or call notification was sent.</span>
           </div>
           <ArrowRight size={18} className="shrink-0" aria-hidden="true" />
         </div>
@@ -72,7 +72,7 @@ export default function LocationPanel({ lostSession, onParentMode }: Props) {
               <p className="relative mt-3 max-w-[430px] text-[14px] leading-7 text-[#617B96]">
                 {hasCoordinates
                   ? "Show the map when you&apos;re ready. The preview uses OpenStreetMap."
-                  : "Open Parent Mode and tap ‘I&apos;m lost’ to capture the latest location on this device."}
+                  : "Open Parent Mode on the parent&apos;s phone and tap ‘I&apos;m lost’ to share a location."}
               </p>
               {hasCoordinates ? (
                 <button type="button" onClick={() => setShowMap(true)} className="relative mt-7 inline-flex min-h-[52px] items-center gap-2 rounded-2xl bg-[#173252] px-5 text-[14px] font-semibold text-white">
@@ -100,13 +100,13 @@ export default function LocationPanel({ lostSession, onParentMode }: Props) {
             {lostSession ? "Latest update" : "Standing by"}
           </h2>
           <p className="mt-3 text-[14px] leading-7 text-[#617B96]">
-            {lostSession ? "This device created a local location event in Parent Mode." : "No Parent Mode location event has been created yet."}
+            {lostSession ? "Latest location shared from Parent Mode." : "No Parent Mode location event has been created yet."}
           </p>
 
           <dl className="mt-7 grid gap-5">
             <div className="rounded-[20px] bg-[#F7FAFD] px-4 py-4">
               <dt className="text-[12px] font-medium text-[#6D8298]">Status</dt>
-              <dd className="mt-1 text-[18px] font-semibold text-[#173252]">{lostSession?.status === "requesting" ? "Requesting location" : lostSession?.status === "unavailable" ? "Unavailable" : hasCoordinates ? "On device" : "Waiting"}</dd>
+              <dd className="mt-1 text-[18px] font-semibold text-[#173252]">{lostSession?.status === "requesting" ? "Requesting location" : lostSession?.status === "unavailable" ? "Unavailable" : hasCoordinates ? "Received" : "Waiting"}</dd>
             </div>
             <div className="rounded-[20px] bg-[#F7FAFD] px-4 py-4">
               <dt className="text-[12px] font-medium text-[#6D8298]">Updated</dt>
@@ -132,7 +132,7 @@ export default function LocationPanel({ lostSession, onParentMode }: Props) {
 
           <div className="mt-8 flex items-start gap-3 text-[12px] leading-6 text-[#7A8EA2]">
             <LockKeyhole size={16} className="mt-1 shrink-0" />
-            <p>Prototype only. Coordinates stay on this device until you choose to open the map preview.</p>
+            <p>Demo only. The latest position is shared through your family workspace; map tiles load from OpenStreetMap only after you choose to show the map.</p>
           </div>
         </section>
       </div>

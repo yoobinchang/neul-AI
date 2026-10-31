@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import type { LostSession } from "./types";
 
-// Map tiles load only after the user asks to view the map. This shares the
-// captured coordinates with OpenStreetMap, not with a family member.
+// Map tiles load only after the user asks to view the map. Showing the map sends
+// the coordinates to OpenStreetMap.
 function mapLinks(lat: number, lon: number, accuracy: number | undefined) {
   const radius = Math.min(0.017, Math.max(0.0035, ((accuracy ?? 0) * 4) / 111_320));
   const cos = Math.max(0.15, Math.abs(Math.cos((lat * Math.PI) / 180)));
@@ -79,8 +79,9 @@ export default function FocusHome({
     Math.abs(lostSession.latitude) <= 90 &&
     Math.abs(lostSession.longitude) <= 180;
 
-  const locationId = hasLocation ? `${lostSession.latitude},${lostSession.longitude},${lostSession.updatedAt}` : null;
-  // Map permission applies only to one captured position, not future updates.
+  // Demo: the location now updates live, so one "Show map" tap covers the whole
+  // sharing session. It resets when the location goes away (e.g. "I'm safe now").
+  const locationId = hasLocation ? "live" : null;
   const showMap = locationId !== null && approvedLocationId === locationId;
 
   const links = hasLocation ? mapLinks(lostSession!.latitude!, lostSession!.longitude!, lostSession?.accuracy) : null;
@@ -116,7 +117,7 @@ export default function FocusHome({
       {isLost && (
         <button type="button" onClick={onLocation} className="neul-demo-lost-banner mb-5 flex w-full items-center gap-4 text-left" aria-label="Review Lost Mode location preview">
           <span className="neul-demo-beacon-dot" aria-hidden="true" />
-          <span className="min-w-0 flex-1"><strong className="block text-[14px] font-semibold">Lost Mode preview active</strong><small className="block text-[12px] leading-6">Started on this device · no family alert was delivered</small></span>
+          <span className="min-w-0 flex-1"><strong className="block text-[14px] font-semibold">Lost Mode preview active</strong><small className="block text-[12px] leading-6">Location received from Parent Mode · no SMS or call was sent</small></span>
           <ArrowRight size={19} className="shrink-0" />
         </button>
       )}
@@ -159,7 +160,7 @@ export default function FocusHome({
           <div className="relative mx-5 flex min-h-[250px] flex-1 flex-col items-center justify-center overflow-hidden rounded-[18px] bg-[#EDF3F8] sm:mx-6 sm:min-h-[290px]">
             {showMap && links ? (
               <iframe
-                key={locationId ?? "map"}
+                key={links.iframe}
                 title="Map of the device's captured position"
                 src={links.iframe}
                 loading="lazy"
@@ -172,7 +173,7 @@ export default function FocusHome({
                 <div className={`neul-demo-map-marker relative z-10 grid h-[66px] w-[66px] place-items-center rounded-[22px] border border-[#E1E9F2] bg-white text-[#1F3A5F] shadow-[0_10px_35px_-20px_rgba(24,57,92,.27)] ${isLost ? "neul-demo-map-marker-lost" : ""}`}><Navigation2 size={28} /></div>
                 <p className="relative z-10 mt-4 px-5 text-center text-[16px] font-semibold text-[#244665]">{hasLocation ? "Location ready to view" : "Waiting for location"}</p>
                 <p className="relative z-10 mt-2 max-w-[280px] px-5 text-center text-[12px] leading-6 text-[#627D96]">
-                  {hasLocation ? "OpenStreetMap loads after you choose to show it." : "Start Parent Mode on this device to try the GPS demo."}
+                  {hasLocation ? "OpenStreetMap loads after you choose to show it." : "Open Parent Mode on the parent&apos;s phone and tap ‘I&apos;m lost’."}
                 </p>
                 {hasLocation && links && (
                   <button type="button" onClick={() => setApprovedLocationId(locationId)} className="relative z-10 mt-4 min-h-11 rounded-xl bg-white px-5 text-[13px] font-semibold text-[#244665] shadow-sm transition hover:bg-[#F8FAFC]">
@@ -190,7 +191,7 @@ export default function FocusHome({
                 {typeof lostSession.accuracy === "number" ? ` · ±${Math.round(lostSession.accuracy)} m` : ""}
               </p>
             ) : (
-              <p className="text-[12px] leading-6 text-[#71869B]">Location stays in this browser until real device pairing is built.</p>
+              <p className="text-[12px] leading-6 text-[#71869B]">Demo: location is shared through your family workspace.</p>
             )}
             <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-3">
               <button type="button" onClick={hasLocation ? onLocation : onParentMode} className="inline-flex min-h-11 items-center gap-2 text-[13px] font-semibold text-[#244665] hover:text-[#102D4B]">
@@ -201,7 +202,7 @@ export default function FocusHome({
           </div>
         </section>
       </div>
-      {isLost && <p className="mt-5 text-[13px] font-medium leading-6 text-[#657D94]">Lost Mode demo was started on this browser. No family notification has been sent.</p>}
+      {isLost && <p className="mt-5 text-[13px] font-medium leading-6 text-[#657D94]">Lost Mode demo location received. No SMS or call notification has been sent.</p>}
     </div>
   );
 }
