@@ -36,6 +36,7 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import AuthGate from '@/components/auth/AuthGate';
 import { CALL_FIELDS, PAGE_SIZE, loadWorkspace, toCall, type CallDetail, type CallRecord, type Family, type Parent, type Workspace } from '@/lib/caregiver';
 import { clearLocation, fetchLocation, pushLocation, type LocationPoint } from '@/lib/demoLocation';
+import { loadActivitySnapshot } from '@/lib/activity-sync';
 
 const LOCATION_POLL_MS = 4000;
 const LOCATION_PUSH_MIN_MS = 3000;
@@ -145,8 +146,63 @@ function Dashboard({ client, session }: { client: SupabaseClient; session: Sessi
     return () => { active = false; };
   }, [client, refresh]);
 
-  // DEMO location sync: Parent Mode uploads each GPS fix; Caregiver Mode polls the latest one.
+  // neul-activity-sync-v16: read-only polling plus event-triggered refresh.
+  // The call_details source is a VIEW, not a Realtime Postgres base table.
+  // Real-time Postgres events are an optimization for alerts only; polling is
+  // the fallback for calls, summaries, acknowledgments and lost-alert history.
+  const [syncError, setSyncError] = useState(false);
   const familyId = workspace?.family.family_id;
+  useEffect(() => {
+    if (!familyId || mode !== 'caregiver') return;
+    let disposed = false;
+    let inFlight = false;
+
+    async function syncActivity() {
+      if (disposed || inFlight || document.visibilityState === 'hidden') return;
+      inFlight = true;
+      const requestAtStart = request.current;
+      try {
+        const snapshot = await loadActivitySnapshot(client, familyId!, page);
+        if (disposed || requestAtStart !== request.current) return;
+        // Do NOT replace profile edits, parent selection or any local LostSession.
+        // Never turn on the red emergency UI based on a historical alert.
+        setWorkspace(current => current && current.family.family_id === familyId
+          ? { ...current, ...snapshot }
+          : current);
+        setSyncError(false);
+      } catch {
+        if (!disposed) setSyncError(true);
+      } finally {
+        inFlight = false;
+      }
+    }
+
+    const refreshOnFocus = () => { if (document.visibilityState === 'visible') void syncActivity(); };
+    const interval = window.setInterval(() => { void syncActivity(); }, 15_000);
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshOnFocus);
+
+    // Optional fast-path: A must enable Postgres Changes publication and RLS.
+    // No payload data is trusted; refetch through existing family-scoped views.
+    const channel = client.channel(`neul-activity-${session.user.id}-${familyId}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'alerts', filter: `family_id=eq.${familyId}`,
+      }, () => { void syncActivity(); })
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'acknowledgments', filter: `family_id=eq.${familyId}`,
+      }, () => { void syncActivity(); })
+      .subscribe();
+
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
+      void client.removeChannel(channel);
+    };
+  }, [client, familyId, mode, page, session.user.id]);
+
+  // DEMO location sync: Parent Mode uploads each GPS fix; Caregiver Mode polls the latest one.
   const lastPush = useRef(0);
   const fromRemote = useRef(false);
   const [syncNote, setSyncNote] = useState("");
@@ -324,6 +380,9 @@ function Dashboard({ client, session }: { client: SupabaseClient; session: Sessi
           <div className="mb-5 flex flex-wrap items-center gap-4">
             <label className="text-sm">Family <select aria-label="Family" className="rounded-lg border bg-white p-2" value={workspace.family.family_id} disabled={saving} onChange={e => { const family = families.find(f => f.family_id === e.target.value); if (family) { setLostSession(null); void refresh(family); } }}>{families.map(f => <option key={f.family_id} value={f.family_id}>{f.display_name}</option>)}</select></label>
             <button disabled={saving} className="text-sm underline" onClick={() => refresh(workspace.family, page)}>Refresh data</button>
+            <span className="text-[11px] text-[#7189A2]" role="status">
+              {syncError ? 'Auto-refresh delayed · use Refresh data' : 'Calls & alerts refresh every 15s'}
+            </span>
           </div>
           {error && <p role="alert" className="mb-5 rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}
 
