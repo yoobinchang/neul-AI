@@ -6,7 +6,7 @@ insert into public.families (family_id, display_name, neul_number) values
 insert into public.parents (parent_id, family_id, name, preferred_name, phone_number, routine, family_facts, calming_topics, topics_to_avoid) values
 ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001',
  'Alex', 'Alex', '+12025550101', 'Alex enjoys gardening in the morning and listening to music after lunch.',
- array['Sam is the primary caregiver.', 'Jordan is the backup contact.', 'Alex has a dog named Coco.'],
+ array['Sam is the primary caregiver.', 'Jordan is the backup contact.', 'Alex has a dog named Coco.', 'Sam works at an office on weekdays.', 'Sam visits every Sunday afternoon.'],
  array['Gardening', 'Coco the dog', 'Favorite music'],
  array['Arguments about mistaken memories', 'Quizzing Alex about things they cannot remember']) on conflict do nothing;
 insert into public.contacts (contact_id, family_id, display_name, phone_number, priority) values
