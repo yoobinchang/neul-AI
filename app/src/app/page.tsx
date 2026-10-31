@@ -35,7 +35,7 @@ import type { LostSession } from "@/components/types";
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import AuthGate from '@/components/auth/AuthGate';
 import { CALL_FIELDS, PAGE_SIZE, loadWorkspace, toCall, type CallDetail, type CallRecord, type Family, type Parent, type Workspace } from '@/lib/caregiver';
-import { clearLocation, fetchLocation, pushLocation, type LocationPoint } from '@/lib/demoLocation';
+import { clearLocation, fetchLatestLostAlert, fetchLocation, pushLocation, type LocationPoint } from '@/lib/demoLocation';
 import { loadActivitySnapshot } from '@/lib/activity-sync';
 
 const LOCATION_POLL_MS = 4000;
@@ -245,6 +245,30 @@ function Dashboard({ client, session }: { client: SupabaseClient; session: Sessi
     return () => { active = false; window.clearInterval(timer); };
   }, [client, familyId, mode]);
 
+  // DEMO: when the AI creates a NEW lost alert on a call, turn on Lost Mode with the
+  // landmarks from the call. Parent Mode (on the parent's phone) also starts sharing
+  // its location by itself. Alerts from before this page opened are ignored.
+  const seenLostAlert = useRef<string | null | undefined>(undefined);
+  const [autoLocate, setAutoLocate] = useState(0);
+  useEffect(() => {
+    if (!familyId) return;
+    let active = true;
+    const poll = async () => {
+      const { data, error } = await fetchLatestLostAlert(client, familyId);
+      if (!active || error) return;
+      const id = data?.alertId ?? null;
+      if (seenLostAlert.current === undefined) { seenLostAlert.current = id; return; }
+      if (!data || id === seenLostAlert.current) return;
+      seenLostAlert.current = id;
+      const clue = data.landmarks.length ? `From the call: ${data.landmarks.join(", ")}` : data.reason;
+      setLostSession((prev) => prev ? { ...prev, clue } : { status: "requesting", updatedAt: Date.now(), clue });
+      if (mode === "parent") setAutoLocate((n) => n + 1);
+    };
+    void poll();
+    const timer = window.setInterval(() => void poll(), LOCATION_POLL_MS);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [client, familyId, mode]);
+
   async function signOut() {
     const { error } = await client.auth.signOut();
     if (error) setError(error.message);
@@ -339,7 +363,7 @@ function Dashboard({ client, session }: { client: SupabaseClient; session: Sessi
   </main>;
 
   if (mode === "parent") {
-    return <ParentMode parentName={profile?.preferred_name ?? "Parent"} lostSession={lostSession} onLostUpdate={setLostSession} onCaregiverMode={returnToCaregiver} onPosition={sharePosition} onSafe={clearSharedPosition} syncNote={syncNote} />;
+    return <ParentMode parentName={profile?.preferred_name ?? "Parent"} lostSession={lostSession} onLostUpdate={setLostSession} onCaregiverMode={returnToCaregiver} onPosition={sharePosition} onSafe={clearSharedPosition} syncNote={syncNote} autoLocate={autoLocate} />;
   }
 
   return (

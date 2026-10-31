@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { ArrowLeft, Check, LocateFixed, MapPin, RefreshCcw, ShieldCheck, Radio } from "lucide-react";
 import type { LostSession } from "./types";
 import NeulBrand from "./NeulBrand";
@@ -14,12 +14,15 @@ type Props = {
   onPosition?: (point: { latitude: number; longitude: number; accuracy: number }) => void;
   onSafe?: () => void;
   syncNote?: string;
+  // DEMO: goes up by one when the AI creates a lost alert on a call; starts sharing without a tap.
+  autoLocate?: number;
 };
 
-export default function ParentMode({ parentName, lostSession, onLostUpdate, onCaregiverMode, onPosition, onSafe, syncNote }: Props) {
+export default function ParentMode({ parentName, lostSession, onLostUpdate, onCaregiverMode, onPosition, onSafe, syncNote, autoLocate = 0 }: Props) {
   const locationRequestId = useRef(0);
   const watchId = useRef<number | null>(null);
   const hasFix = useRef(false);
+  const [locationError, setLocationError] = useState("");
 
   const locating = lostSession?.status === "requesting";
   const located = lostSession?.status === "located";
@@ -36,9 +39,15 @@ export default function ParentMode({ parentName, lostSession, onLostUpdate, onCa
     stopWatching();
     hasFix.current = false;
     const requestId = ++locationRequestId.current;
-    onLostUpdate({ status: "requesting", updatedAt: Date.now(), clue: lostSession?.clue });
-    if (!("geolocation" in navigator)) {
-      onLostUpdate({ status: "unavailable", updatedAt: Date.now(), clue: lostSession?.clue });
+    setLocationError("");
+    onLostUpdate((prev) => ({ status: "requesting", updatedAt: Date.now(), clue: prev?.clue }));
+    // Browsers only give location to https pages (and localhost on the same computer).
+    const problem = !window.isSecureContext
+      ? "Location only works on a secure (https) link. Open Neul from its https address, not an http:// or 192.168… address."
+      : !("geolocation" in navigator) ? "This browser can't share location." : "";
+    if (problem) {
+      setLocationError(problem);
+      onLostUpdate((prev) => ({ status: "unavailable", updatedAt: Date.now(), clue: prev?.clue }));
       return;
     }
     // Keep watching while this screen is open so the caregiver's map follows the phone.
@@ -55,11 +64,22 @@ export default function ParentMode({ parentName, lostSession, onLostUpdate, onCa
         // A single timeout after we already have a fix is not worth discarding it.
         if (hasFix.current && error.code !== error.PERMISSION_DENIED) return;
         stopWatching();
+        setLocationError(error.code === error.PERMISSION_DENIED
+          ? "Location permission is off for this site. Turn it on in the browser's site settings, then tap Try again."
+          : "Couldn't get a location fix. Try again, ideally near a window or outside.");
         onLostUpdate((prev) => ({ status: "unavailable", updatedAt: Date.now(), clue: prev?.clue }));
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
     );
   }
+
+  // Works without a tap only if location permission was already granted on this phone.
+  useEffect(() => {
+    if (autoLocate === 0) return;
+    const timer = window.setTimeout(requestHelpLocation, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoLocate]);
 
 
   return (
@@ -130,7 +150,7 @@ export default function ParentMode({ parentName, lostSession, onLostUpdate, onCa
 
               <div className="mt-6 rounded-[20px] bg-[#F7FAFD] px-5 py-4 text-[14px] leading-7 text-[#607B96]">
                 <div className="flex items-center gap-2 font-semibold text-[#173252]"><LocateFixed size={18} /> {located ? "Location found" : "Waiting for browser location"}</div>
-                <p className="mt-2">{located ? `Accuracy: ± ${Math.round(lostSession?.accuracy ?? 0)} m.` : "If your browser asks for location permission, please allow it."}</p>
+                <p className="mt-2">{located ? `Accuracy: ± ${Math.round(lostSession?.accuracy ?? 0)} m.` : lostSession?.status === "unavailable" && locationError ? locationError : "If your browser asks for location permission, please allow it."}</p>
                 {located && syncNote && <p className="mt-1 text-[13px]" role="status">{syncNote}</p>}
               </div>
 
