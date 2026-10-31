@@ -4,8 +4,6 @@ An AI phone assistant that supports families when a caregiver cannot answer.
 
 A parent calls their child's existing number. When a tested conditional-forwarding setup routes an unanswered call to Neul, the AI identifies itself, uses caregiver-provided context, and talks with the parent. The caregiver reviews call summaries in the Neul app (an installable PWA) and receives alerts when follow-up may be needed.
 
-**Status: caregiver UI with Supabase email/password auth, family RLS, profile editing, and database-backed calls/alerts.** Migration and fictional seed files are included; apply them to a development project using [the setup guide](docs/supabase-setup.md). Phone/voice integrations and hosted deployment are not configured by this repository.
-
 ## Product boundaries
 
 - The child receives the original call first.
