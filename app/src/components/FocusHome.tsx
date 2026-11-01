@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  AlertTriangle,
   ArrowRight,
   ArrowUpRight,
   Bell,
@@ -12,6 +13,7 @@ import {
   PhoneCall,
 } from "lucide-react";
 import type { LostSession } from "./types";
+import { lostBannerText } from "@/lib/lostBanner";
 
 // Map tiles load only after the user asks to view the map. Showing the map sends
 // the coordinates to OpenStreetMap.
@@ -65,6 +67,7 @@ export default function FocusHome({
   const displayName = /[\uAC00-\uD7A3]/.test(sourceName)
     ? sourceName
     : sourceName.split(/\s+/)[0];
+  const lostBanner = lostSession ? lostBannerText(displayName, lostSession) : { title: `${displayName} needs help finding the way`, detail: "Waiting for location" };
   const overviewTitle = /[\uAC00-\uD7A3]/.test(displayName)
     ? `${displayName} overview`
     : `${displayName}'s overview`;
@@ -115,10 +118,10 @@ export default function FocusHome({
       </header>
 
       {isLost && (
-        <button type="button" onClick={onLocation} className="neul-demo-lost-banner mb-5 flex w-full items-center gap-4 text-left" aria-label="Review Lost Mode location preview">
-          <span className="neul-demo-beacon-dot" aria-hidden="true" />
-          <span className="min-w-0 flex-1"><strong className="block text-[14px] font-semibold">Lost Mode preview active</strong><small className="block text-[12px] leading-6">Location received from Parent Mode · no SMS or call was sent</small></span>
-          <ArrowRight size={19} className="shrink-0" />
+        <button type="button" onClick={onLocation} className="neul-emergency-banner mb-5 w-full text-left" aria-label={`${lostBanner.title}. View location`}>
+          <span className="neul-emergency-icon" aria-hidden="true"><AlertTriangle size={22} strokeWidth={2.4} /></span>
+          <span className="min-w-0 flex-1"><strong>{lostBanner.title}</strong><small>{lostBanner.detail}</small></span>
+          <span className="neul-emergency-cta">View location <ArrowRight size={17} /></span>
         </button>
       )}
       <div className="grid items-stretch gap-5 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,.88fr)] lg:gap-6">
@@ -152,7 +155,7 @@ export default function FocusHome({
             <div>
               <p className="flex items-center gap-2 text-[13px] font-semibold text-[#24496D]"><MapPin size={17} /> Parent location</p>
               <p className="mt-2 text-[13px] leading-6 text-[#6D8296]" role="status">{locationStatus}</p>
-              {isLost && <p className="mt-2 inline-flex items-center gap-2 text-[12px] font-semibold text-[#C83B49]"><span className="neul-demo-beacon-dot" aria-hidden="true" /> Lost Mode preview</p>}
+              {isLost && <p className="mt-2 inline-flex items-center gap-2 text-[12px] font-semibold text-[#C83B49]"><span className="neul-demo-beacon-dot" aria-hidden="true" /> Lost Mode on</p>}
             </div>
             <button type="button" onClick={onLocation} aria-label="Open location details" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#E2EAF2] text-[#54718F] transition hover:bg-[#F5F8FB]"><ArrowUpRight size={19} /></button>
           </div>
