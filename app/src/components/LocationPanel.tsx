@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, ExternalLink, LockKeyhole, MapPin, Navigation2 } from "lucide-react";
+import { AlertTriangle, ArrowRight, ExternalLink, LockKeyhole, MapPin, Navigation2 } from "lucide-react";
 import type { LostSession } from "./types";
+import { lostBannerText, possessive, shortName } from "@/lib/lostBanner";
 
-type Props = { lostSession: LostSession | null; onParentMode: () => void };
+type Props = { lostSession: LostSession | null; onParentMode: () => void; parentName: string };
 
 function buildMapUrls(lat: number, lon: number, accuracy?: number) {
   const safeAccuracy = Number.isFinite(accuracy) ? Math.max(0, accuracy ?? 0) : 0;
@@ -30,7 +31,9 @@ function formatAge(timestamp: number) {
   return `${Math.floor(elapsed / 3_600_000)} hr ago`;
 }
 
-export default function LocationPanel({ lostSession, onParentMode }: Props) {
+export default function LocationPanel({ lostSession, onParentMode, parentName }: Props) {
+  const name = shortName(parentName);
+  const banner = lostSession ? lostBannerText(name, lostSession) : null;
   const [showMap, setShowMap] = useState(false);
   const hasCoordinates = typeof lostSession?.latitude === "number" && typeof lostSession?.longitude === "number";
   const mapUrls = hasCoordinates ? buildMapUrls(lostSession!.latitude!, lostSession!.longitude!, lostSession?.accuracy) : null;
@@ -40,22 +43,22 @@ export default function LocationPanel({ lostSession, onParentMode }: Props) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-[12px] font-medium text-[#6D8298]">Location support</p>
-          <h1 className="mt-3 text-[clamp(2.5rem,5vw,4.5rem)] font-semibold leading-[0.98] tracking-[-0.07em] text-[#173252]">Find Mom faster.</h1>
-          <p className="mt-4 max-w-[620px] text-[15px] leading-7 text-[#617B96]">One clean place to view the latest location event.</p>
+          <h1 className="mt-3 text-[clamp(2.5rem,5vw,4.5rem)] font-semibold leading-[0.98] tracking-[-0.07em] text-[#173252]">{lostSession ? <>{name} is lost.<br />Help {name} get home.</> : `${possessive(name)} location`}</h1>
+          <p className="mt-4 max-w-[620px] text-[15px] leading-7 text-[#617B96]">{lostSession ? `The latest location from ${possessive(name)} phone, updated every few seconds.` : `Shows up here when ${name} shares a location.`}</p>
         </div>
         <button type="button" onClick={onParentMode} className="inline-flex min-h-[52px] items-center gap-2 rounded-2xl bg-[#173252] px-5 text-[14px] font-semibold text-white shadow-[0_20px_45px_-30px_rgba(23,50,82,.4)] hover:bg-[#21436B]">
           Parent Mode <ArrowRight size={17} />
         </button>
       </div>
 
-      {lostSession && (
-        <div className="neul-demo-incident-banner neul-demo-location-incident mt-6" role="status">
-          <span className="neul-demo-beacon-dot" aria-hidden="true" />
+      {banner && (
+        <div className="neul-emergency-banner neul-demo-location-incident mt-6" role="alert">
+          <span className="neul-emergency-icon" aria-hidden="true"><AlertTriangle size={22} strokeWidth={2.4} /></span>
           <div className="min-w-0 flex-1">
-            <strong className="block text-[15px]">Lost Mode preview active</strong>
-            <span className="block text-[12px] leading-6">Location was shared from Parent Mode. No SMS or call notification was sent.</span>
+            <strong>{banner.title}</strong>
+            <small>{banner.detail}</small>
           </div>
-          <ArrowRight size={18} className="shrink-0" aria-hidden="true" />
+          <span className="neul-emergency-dot" aria-hidden="true" />
         </div>
       )}
       <div className="mt-7 grid gap-5 lg:grid-cols-[minmax(0,1.55fr)_360px]">

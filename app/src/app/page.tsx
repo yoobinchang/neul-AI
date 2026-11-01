@@ -494,7 +494,7 @@ function Dashboard({ client, session }: { client: SupabaseClient; session: Sessi
             </div>
           )}
 
-          {tab === "location" && <LocationPanel lostSession={lostSession} onParentMode={enterParentMode} />}
+          {tab === "location" && <LocationPanel lostSession={lostSession} onParentMode={enterParentMode} parentName={profile?.preferred_name?.trim() || profile?.name || "Parent"} />}
 
           {tab === "profile" && (
             <div>
