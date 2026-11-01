@@ -11,4 +11,6 @@ export type LostSession = {
   longitude?: number;
   accuracy?: number;
   clue?: string;
+  /** "call": the parent said they were lost on a Neul call (the AI created a lost alert). */
+  source?: "call" | "tap";
 };

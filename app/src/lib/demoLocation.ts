@@ -44,14 +44,14 @@ export async function fetchLocation(client: SupabaseClient, familyId: string): P
   };
 }
 
-export type LostAlert = { alertId: string; reason: string; landmarks: string[] };
+export type LostAlert = { alertId: string; reason: string; landmarks: string[]; createdAt: number };
 
 // The newest "lost" alert the AI created on a call, or null if there is none.
 export async function fetchLatestLostAlert(client: SupabaseClient, familyId: string): Promise<{ data: LostAlert | null; error: string | null }> {
   const { data, error } = await client.from('alerts')
-    .select('alert_id,reason,landmarks').eq('family_id', familyId).eq('type', 'lost')
+    .select('alert_id,reason,landmarks,created_at').eq('family_id', familyId).eq('type', 'lost')
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (error) return { data: null, error: error.message };
   if (!data) return { data: null, error: null };
-  return { data: { alertId: data.alert_id, reason: data.reason, landmarks: data.landmarks ?? [] }, error: null };
+  return { data: { alertId: data.alert_id, reason: data.reason, landmarks: data.landmarks ?? [], createdAt: Date.parse(data.created_at) }, error: null };
 }
