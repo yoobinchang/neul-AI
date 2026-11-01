@@ -173,7 +173,7 @@ export default function FocusHome({
                 <div className={`neul-demo-map-marker relative z-10 grid h-[66px] w-[66px] place-items-center rounded-[22px] border border-[#E1E9F2] bg-white text-[#1F3A5F] shadow-[0_10px_35px_-20px_rgba(24,57,92,.27)] ${isLost ? "neul-demo-map-marker-lost" : ""}`}><Navigation2 size={28} /></div>
                 <p className="relative z-10 mt-4 px-5 text-center text-[16px] font-semibold text-[#244665]">{hasLocation ? "Location ready to view" : "Waiting for location"}</p>
                 <p className="relative z-10 mt-2 max-w-[280px] px-5 text-center text-[12px] leading-6 text-[#627D96]">
-                  {hasLocation ? "OpenStreetMap loads after you choose to show it." : "Open Parent Mode on the parent&apos;s phone and tap ‘I&apos;m lost’."}
+                  {hasLocation ? "OpenStreetMap loads after you choose to show it." : "Open Parent Mode on the parent&apos;s phone and say “I&apos;m lost” on a Neul call."}
                 </p>
                 {hasLocation && links && (
                   <button type="button" onClick={() => setApprovedLocationId(locationId)} className="relative z-10 mt-4 min-h-11 rounded-xl bg-white px-5 text-[13px] font-semibold text-[#244665] shadow-sm transition hover:bg-[#F8FAFC]">

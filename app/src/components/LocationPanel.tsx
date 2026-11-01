@@ -72,7 +72,7 @@ export default function LocationPanel({ lostSession, onParentMode }: Props) {
               <p className="relative mt-3 max-w-[430px] text-[14px] leading-7 text-[#617B96]">
                 {hasCoordinates
                   ? "Show the map when you&apos;re ready. The preview uses OpenStreetMap."
-                  : "Open Parent Mode on the parent&apos;s phone and tap ‘I&apos;m lost’ to share a location."}
+                  : "Open Parent Mode on the parent&apos;s phone and say “I&apos;m lost” on a Neul call (or tap “Can&apos;t talk?”) to share a location."}
               </p>
               {hasCoordinates ? (
                 <button type="button" onClick={() => setShowMap(true)} className="relative mt-7 inline-flex min-h-[52px] items-center gap-2 rounded-2xl bg-[#173252] px-5 text-[14px] font-semibold text-white">
