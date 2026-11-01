@@ -66,15 +66,15 @@ export const UNKNOWN_CALLER_VARIABLES: AgentVariables = {
   opening_line: "Sorry, this call can't be answered right now. Goodbye.",
 };
 
-export function openingLine(preferredName: string, caregiverName: string): string {
-  return (
-    `Hi ${preferredName}, this is Neul, an AI assistant for your family. ` +
-    `${caregiverName} couldn't pick up right now, so I answered. ` +
-    `I'll share a short summary of our chat with ${caregiverName}. How are you doing?`
-  );
+// First says why the caregiver can't pick up, then that Neul is an AI.
+// caregiverAway finishes "Sam …", e.g. "is teaching right now and can talk after class".
+export function openingLine(preferredName: string, caregiverName: string, caregiverAway = ""): string {
+  const away = caregiverAway.trim() || "can't pick up right now";
+  const until = caregiverAway.trim() ? "until then" : `until ${caregiverName} can`;
+  return `Hi ${preferredName}! ${caregiverName} ${away}. I'm Neul, an AI assistant, and I'm here to chat ${until}. How are you?`;
 }
 
-export function agentVariables(context: CallContext): AgentVariables {
+export function agentVariables(context: CallContext, caregiverAway = ""): AgentVariables {
   const { parent } = context;
   if (context.context_status !== "resolved" || !parent) return UNKNOWN_CALLER_VARIABLES;
   // C01: a missing primary contact is allowed but must not look like a valid setup.
@@ -83,6 +83,6 @@ export function agentVariables(context: CallContext): AgentVariables {
     preferred_name: parent.preferred_name,
     caregiver_name: caregiverName,
     known_facts: knownFacts(parent),
-    opening_line: openingLine(parent.preferred_name, caregiverName),
+    opening_line: openingLine(parent.preferred_name, caregiverName, caregiverAway),
   };
 }

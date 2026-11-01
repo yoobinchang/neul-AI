@@ -119,7 +119,7 @@ test("inbound: Alex calling the family's number gets Alex's profile and a call r
   assert.equal(variables.preferred_name, "Alex");
   assert.equal(variables.caregiver_name, "Sam");
   assert.match(variables.known_facts, /Gardening/);
-  assert.match(variables.opening_line, /^Hi Alex, this is Neul, an AI assistant/);
+  assert.equal(variables.opening_line, "Hi Alex! Sam can't pick up right now. I'm Neul, an AI assistant, and I'm here to chat until Sam can. How are you?");
   assert.equal(response.call_inbound.metadata?.context_status, "resolved");
   assert.equal(calls.size, 1);
   // Retell retries the webhook; the same call must not create a second row.
@@ -230,4 +230,13 @@ test("summarize: an empty transcript is marked failed without a model call", asy
   const outcome = await handleSummarize({ call_id: "call-1" }, store, fakeClient(model));
   assert.deepEqual(outcome.body, { call_id: "call-1", summary_status: "failed", written: true });
   assert.equal(model.count, 0);
+});
+
+test("inbound: the caregiver's away message comes first in the opening line", async () => {
+  const { store } = memoryStore();
+  const response = await handleInbound(inbound(ALEX_NUMBER), store, [], "is teaching right now and can talk after class");
+  assert.equal(
+    response.call_inbound.dynamic_variables!.opening_line,
+    "Hi Alex! Sam is teaching right now and can talk after class. I'm Neul, an AI assistant, and I'm here to chat until then. How are you?",
+  );
 });

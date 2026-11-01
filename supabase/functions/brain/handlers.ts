@@ -39,6 +39,7 @@ export async function handleInbound(
   event: RetellInboundEvent,
   store: BrainStore,
   testParentNumbers: readonly string[] = [],
+  caregiverAway = "",
   now = new Date(),
 ): Promise<RetellInboundResponse> {
   const inbound = event.call_inbound;
@@ -73,7 +74,7 @@ export async function handleInbound(
   };
   return {
     call_inbound: {
-      dynamic_variables: agentVariables(context),
+      dynamic_variables: agentVariables(context, caregiverAway),
       metadata: { family_id: familyId, call_id: callId, context_status: "resolved" },
     },
   };

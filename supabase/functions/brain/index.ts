@@ -31,6 +31,10 @@ const testParentNumbers = (Deno.env.get("DEMO_PARENT_NUMBERS") ?? "")
   .map((number) => number.trim())
   .filter((number) => /^\+[1-9][0-9]{7,14}$/.test(number));
 
+// Optional: why the caregiver can't pick up, said first in the opening line. It finishes
+// "<caregiver name> …", e.g. "is teaching right now and can talk after class".
+const caregiverAway = (Deno.env.get("DEMO_CAREGIVER_AWAY") ?? "").trim().slice(0, 120);
+
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const error = (status: number, code: string, message: string) => json(status, { error: { code, message } });
@@ -58,7 +62,7 @@ Deno.serve(async (request) => {
   }
 
   try {
-    if (route === "/retell/inbound") return json(200, await handleInbound(body as never, store, testParentNumbers));
+    if (route === "/retell/inbound") return json(200, await handleInbound(body as never, store, testParentNumbers, caregiverAway));
     if (route === "/retell/alert") return json(200, await handleAlertTool(body as never, store));
     const outcome = await handleSummarize(body as never, store, anthropic);
     return json(outcome.status, outcome.body);
