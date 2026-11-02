@@ -43,7 +43,22 @@ async function retell(path: string, body?: unknown, method = "PATCH") {
   return result;
 }
 
-await retell(`/update-retell-llm/${llmId}`, {
+// Published versions are read-only. If the agent's latest version is published, start a
+// new draft from it; the draft gets its own editable LLM version.
+type AgentVersion = { version: number; is_published?: boolean; response_engine?: { llm_id?: string; version?: number } };
+let draft: AgentVersion = await retell(`/get-agent/${agentId}`, undefined, "GET");
+if (draft.is_published) {
+  draft = await retell(`/create-agent-version/${agentId}`, { base_version: draft.version }, "POST");
+  console.log(`Created draft version ${draft.version} of agent ${agentId}.`);
+}
+if (draft.response_engine?.llm_id && draft.response_engine.llm_id !== llmId) {
+  console.error(`Agent ${agentId} uses LLM ${draft.response_engine.llm_id}, not RETELL_LLM_ID ${llmId}.`);
+  process.exit(1);
+}
+const llmVersion = draft.response_engine?.version;
+const llmQuery = typeof llmVersion === "number" ? `?version=${llmVersion}` : "";
+
+await retell(`/update-retell-llm/${llmId}${llmQuery}`, {
   general_prompt: retellInstructionsTemplate(),
   begin_message: "{{opening_line}}",
   // Used if the webhook can't be reached: no family details, ever.
@@ -79,16 +94,13 @@ await retell(`/update-retell-llm/${llmId}`, {
     },
   ],
 });
-console.log(`Updated Retell LLM ${llmId} to instructions ${INSTRUCTIONS_VERSION} with alert_caregiver → ${brainUrl}/retell/alert.`);
+console.log(`Updated Retell LLM ${llmId}${llmQuery ? ` version ${llmVersion}` : ""} to instructions ${INSTRUCTIONS_VERSION} with alert_caregiver → ${brainUrl}/retell/alert.`);
 
 // call-events only handles call_ended; skip the other default events.
-await retell(`/update-agent/${agentId}`, { webhook_url: callEventsUrl, webhook_events: ["call_ended"] });
+await retell(`/update-agent/${agentId}?version=${draft.version}`, { webhook_url: callEventsUrl, webhook_events: ["call_ended"] });
 console.log(`Set agent ${agentId}'s call_ended webhook to ${callEventsUrl}.`);
 
-const draft: { version: number; is_published?: boolean } = await retell(`/get-agent/${agentId}`, undefined, "GET");
-if (!draft.is_published) {
-  await retell(`/publish-agent-version/${agentId}`, { version: draft.version, version_title: `instructions ${INSTRUCTIONS_VERSION}` }, "POST");
-}
+await retell(`/publish-agent-version/${agentId}`, { version: draft.version, version_title: `instructions ${INSTRUCTIONS_VERSION}` }, "POST");
 console.log(`Published agent ${agentId} version ${draft.version}.`);
 
 if (phoneNumber) {
